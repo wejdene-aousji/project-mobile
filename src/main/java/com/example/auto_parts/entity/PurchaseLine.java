@@ -1,5 +1,7 @@
 package com.example.auto_parts.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+
 import jakarta.persistence.*;
 
 @Entity
@@ -11,20 +13,25 @@ public class PurchaseLine {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long purchaseLineId;
 
-    private Long purchaseId;
-    private Long productId;
 
     private Integer quantity;
     private Double unitCost;
     private Double subtotal;
 
+    @ManyToOne
+    @JoinColumn(name = "purchase_id")
+    @JsonBackReference
+    private Purchase purchase;
+
+    @ManyToOne
+    @JoinColumn(name = "product_id")
+    private Product product;
+
     public PurchaseLine() {
     }
 
-    public PurchaseLine(Long purchaseLineId, Long purchaseId, Long productId, Integer quantity, Double unitCost, Double subtotal) {
+    public PurchaseLine(Long purchaseLineId, Integer quantity, Double unitCost, Double subtotal) {
         this.purchaseLineId = purchaseLineId;
-        this.purchaseId = purchaseId;
-        this.productId = productId;
         this.quantity = quantity;
         this.unitCost = unitCost;
         this.subtotal = subtotal;
@@ -38,20 +45,20 @@ public class PurchaseLine {
         this.purchaseLineId = purchaseLineId;
     }
 
-    public Long getPurchaseId() {
-        return purchaseId;
+    public Purchase getPurchase() {
+        return purchase;
     }
 
-    public void setPurchaseId(Long purchaseId) {
-        this.purchaseId = purchaseId;
+    public void setPurchase(Purchase purchase) {
+        this.purchase = purchase;
     }
 
-    public Long getProductId() {
-        return productId;
+    public Product getProduct() {
+        return product;
     }
 
-    public void setProductId(Long productId) {
-        this.productId = productId;
+    public void setProduct(Product product) {
+        this.product = product;
     }
 
     public Integer getQuantity() {

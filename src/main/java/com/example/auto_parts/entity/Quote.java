@@ -12,9 +12,13 @@ public class Quote {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long quoteId;
 
-    private Long userId;
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User user;
 
-    private String status; // PENDING, ACCEPTED, REJECTED
+    @Enumerated(EnumType.STRING)
+    private QuoteStatus status = QuoteStatus.PENDING; // PENDING, ACCEPTED, REJECTED
+
     private String message;
 
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -22,9 +26,8 @@ public class Quote {
     public Quote() {
     }
 
-    public Quote(Long quoteId, Long userId, String status, String message, LocalDateTime createdAt) {
+    public Quote(Long quoteId, QuoteStatus status, String message, LocalDateTime createdAt) {
         this.quoteId = quoteId;
-        this.userId = userId;
         this.status = status;
         this.message = message;
         this.createdAt = createdAt;
@@ -38,19 +41,11 @@ public class Quote {
         this.quoteId = quoteId;
     }
 
-    public Long getUserId() {
-        return userId;
-    }
-
-    public void setUserId(Long userId) {
-        this.userId = userId;
-    }
-
-    public String getStatus() {
+    public QuoteStatus getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(QuoteStatus status) {
         this.status = status;
     }
 
@@ -68,6 +63,14 @@ public class Quote {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
     }
 
     

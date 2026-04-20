@@ -2,6 +2,10 @@ package com.example.auto_parts.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDate;
+import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+
 
 @Entity
 @Table(name = "purchases")
@@ -12,18 +16,23 @@ public class Purchase {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long purchaseId;
 
-    private Long supplierId;
-
     private Double totalCost;
 
     private LocalDate purchaseDate;
 
+    @OneToMany(mappedBy = "purchase", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
+    private List<PurchaseLine> lines;
+
+    @ManyToOne
+    @JoinColumn(name = "supplier_id")
+    private Supplier supplier;
+
     public Purchase() {
     }
 
-    public Purchase(Long purchaseId, Long supplierId, Double totalCost, LocalDate purchaseDate) {
+    public Purchase(Long purchaseId, Double totalCost, LocalDate purchaseDate) {
         this.purchaseId = purchaseId;
-        this.supplierId = supplierId;
         this.totalCost = totalCost;
         this.purchaseDate = purchaseDate;
     }
@@ -36,13 +45,6 @@ public class Purchase {
         this.purchaseId = purchaseId;
     }
 
-    public Long getSupplierId() {
-        return supplierId;
-    }
-
-    public void setSupplierId(Long supplierId) {
-        this.supplierId = supplierId;
-    }
 
     public Double getTotalCost() {
         return totalCost;
@@ -58,6 +60,22 @@ public class Purchase {
 
     public void setPurchaseDate(LocalDate purchaseDate) {
         this.purchaseDate = purchaseDate;
+    }
+
+    public List<PurchaseLine> getLines() {
+        return lines;
+    }
+
+    public void setLines(List<PurchaseLine> lines) {
+        this.lines = lines;
+    }
+
+    public Supplier getSupplier() {
+        return supplier;
+    }
+
+    public void setSupplier(Supplier supplier) {
+        this.supplier = supplier;
     }
 
 

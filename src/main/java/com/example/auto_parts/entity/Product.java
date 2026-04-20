@@ -18,13 +18,13 @@ public class Product {
     private Double purchasePrice;
     private Double priceHT;
     private Double priceTTC;
-
+    private String url;
     
     public Product() {
     }
 
     public Product(Long productId, String code, String name, Integer stockQuantity, Double purchasePrice,
-            Double priceHT, Double priceTTC) {
+            Double priceHT, Double priceTTC, String url) {
         this.productId = productId;
         this.code = code;
         this.name = name;
@@ -32,6 +32,7 @@ public class Product {
         this.purchasePrice = purchasePrice;
         this.priceHT = priceHT;
         this.priceTTC = priceTTC;
+        this.url = url;
     }
 
     public Long getProductId() {
@@ -88,6 +89,14 @@ public class Product {
 
     public void setPriceTTC(Double priceTTC) {
         this.priceTTC = priceTTC;
+    }
+
+    public String getUrl() {
+        return url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
     }
 
     

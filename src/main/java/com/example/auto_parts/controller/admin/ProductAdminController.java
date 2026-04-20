@@ -34,15 +34,27 @@ public class ProductAdminController {
         return productAdminService.getProductById(id);
     }
 
-    // Update produit
+    // Mise à jour produit
     @PutMapping("/{id}")
     public Product updateProduct(@PathVariable Long id, @RequestBody Product product) {
         return productAdminService.updateProduct(id, product);
     }
 
-    // Delete produit
+    // Suppression produit
     @DeleteMapping("/{id}")
     public void deleteProduct(@PathVariable Long id) {
         productAdminService.deleteProduct(id);
+    }
+
+    // Mise à jour de stock
+    @PutMapping("/{id}/stock")
+    public Product updateStock(@PathVariable Long id, @RequestParam Integer quantity) {
+        return productAdminService.updateStock(id, quantity);
+    }
+
+    // Obtenir niveau de stock
+    @GetMapping("/{id}/stock")
+    public Integer getStockLevel(@PathVariable Long id) {
+        return productAdminService.getStockLevel(id);
     }
 }
