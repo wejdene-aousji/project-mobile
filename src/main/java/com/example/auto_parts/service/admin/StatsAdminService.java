@@ -18,7 +18,7 @@ public class StatsAdminService {
         this.orderRepository = orderRepository;
     }
 
-    // DAILY SALES (nombre de commandes par jour)
+    // Daily sales
     public Map<LocalDate, Long> getDailySalesStats() {
         return orderRepository.findAll()
                 .stream()
@@ -28,7 +28,7 @@ public class StatsAdminService {
                 ));
     }
 
-    // DAILY REVENUE
+    // Daily revenue
     public Map<LocalDate, Double> getDailyRevenue() {
         return orderRepository.findAll()
                 .stream()
@@ -38,7 +38,7 @@ public class StatsAdminService {
                 ));
     }
 
-    // PERIOD REVENUE
+    // Period revenue
     public Double getPeriodRevenue(LocalDate start, LocalDate end) {
         return orderRepository.findAll()
                 .stream()
@@ -50,7 +50,7 @@ public class StatsAdminService {
                 .sum();
     }
 
-    // TOP SELLING ARTICLES
+    // Top selling articles
     public Map<Long, Integer> getTopSellingArticles() {
         Map<Long, Integer> map = new HashMap<>();
 
@@ -74,7 +74,7 @@ public class StatsAdminService {
                 ));
     }
 
-    // LOW SELLING ARTICLES
+    // Low selling articles
     public Map<Long, Integer> getLowSellingArticles() {
         return getTopSellingArticles()
                 .entrySet()

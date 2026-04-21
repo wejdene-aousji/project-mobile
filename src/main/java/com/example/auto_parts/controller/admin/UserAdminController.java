@@ -16,25 +16,25 @@ public class UserAdminController {
         this.userAdminService = userAdminService;
     }
 
-    // liste clients
+    // List customers
     @GetMapping
     public List<User> getAllClients() {
         return userAdminService.getAllClients();
     }
 
-    // client par id
+    // Get customer by ID
     @GetMapping("/{id}")
     public User getClientById(@PathVariable Long id) {
         return userAdminService.getClientById(id);
     }
 
-    // update client
+    // Update customer
     @PutMapping("/{id}")
     public User updateClient(@PathVariable Long id, @RequestBody User user) {
         return userAdminService.updateClient(id, user);
     }
 
-    // delete client
+    // Delete customer
     @DeleteMapping("/{id}")
     public void deleteClient(@PathVariable Long id) {
         userAdminService.deleteClient(id);

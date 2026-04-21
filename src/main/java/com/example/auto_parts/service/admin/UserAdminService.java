@@ -16,17 +16,17 @@ public class UserAdminService {
         this.userRepository = userRepository;
     }
 
-    // tous les clients
+    // Get all customers
     public List<User> getAllClients() {
         return userRepository.findByRole(Role.CLIENT);
     }
 
-    // client par id
+    // Get customer by ID
     public User getClientById(Long id) {
         return userRepository.findById(id).orElse(null);
     }
 
-    // update client
+    // Update customer
     public User updateClient(Long id, User user) {
 
         User client = getClientById(id);
@@ -43,7 +43,7 @@ public class UserAdminService {
         return null;
     }
 
-    // supprimer client
+    // Delete customer
     public void deleteClient(Long id) {
         userRepository.deleteById(id);
     }

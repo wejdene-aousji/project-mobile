@@ -16,25 +16,25 @@ public class SupplierAdminController {
         this.supplierAdminService = supplierAdminService;
     }
 
-    // add supplier
+    // Add supplier
     @PostMapping
     public Supplier addSupplier(@RequestBody Supplier supplier) {
         return supplierAdminService.addSupplier(supplier);
     }
 
-    // get all suppliers
+    // Get all suppliers
     @GetMapping
     public List<Supplier> getAllSuppliers() {
         return supplierAdminService.getAllSuppliers();
     }
 
-    // update supplier
+    // Update supplier
     @PutMapping("/{id}")
     public Supplier updateSupplier(@PathVariable Long id, @RequestBody Supplier supplier) {
         return supplierAdminService.updateSupplier(id, supplier);
     }
 
-    // delete supplier
+    // Delete supplier
     @DeleteMapping("/{id}")
     public void deleteSupplier(@PathVariable Long id) {
         supplierAdminService.deleteSupplier(id);

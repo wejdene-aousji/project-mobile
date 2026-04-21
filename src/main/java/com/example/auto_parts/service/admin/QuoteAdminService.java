@@ -16,12 +16,12 @@ public class QuoteAdminService {
         this.quoteRepository = quoteRepository;
     }
 
-    // GET ALL QUOTES
+    // Get all quotes
     public List<Quote> getAllQuotes() {
         return quoteRepository.findAll();
     }
 
-    // APPROVE QUOTE
+    // Approve quote
     public Quote approveQuote(Long id) {
 
         Quote quote = quoteRepository.findById(id)
@@ -32,7 +32,7 @@ public class QuoteAdminService {
         return quoteRepository.save(quote);
     }
 
-    // REJECT QUOTE
+    // Reject quote
     public Quote rejectQuote(Long id) {
 
         Quote quote = quoteRepository.findById(id)
@@ -42,6 +42,7 @@ public class QuoteAdminService {
         return quoteRepository.save(quote);
     }
 
+    // Get quotes by status
     public List<Quote> getQuotesByStatus(QuoteStatus status) {
         return quoteRepository.findByStatus(status);
     }

@@ -16,19 +16,19 @@ public class StatsAdminController {
         this.statsAdminService = statsAdminService;
     }
 
-    // daily sales
+    // Daily sales
     @GetMapping("/daily-sales")
     public Map<LocalDate, Long> getDailySalesStats() {
         return statsAdminService.getDailySalesStats();
     }
 
-    // daily revenue
+    // Daily revenue
     @GetMapping("/daily-revenue")
     public Map<LocalDate, Double> getDailyRevenue() {
         return statsAdminService.getDailyRevenue();
     }
 
-    // period revenue
+    // Period revenue
     @GetMapping("/period-revenue")
     public Double getPeriodRevenue(
             @RequestParam LocalDate start,
@@ -36,13 +36,13 @@ public class StatsAdminController {
         return statsAdminService.getPeriodRevenue(start, end);
     }
 
-    // top selling
+    // Top selling
     @GetMapping("/top-products")
     public Map<Long, Integer> getTopSellingArticles() {
         return statsAdminService.getTopSellingArticles();
     }
 
-    // low selling
+    // Low selling
     @GetMapping("/low-products")
     public Map<Long, Integer> getLowSellingArticles() {
         return statsAdminService.getLowSellingArticles();

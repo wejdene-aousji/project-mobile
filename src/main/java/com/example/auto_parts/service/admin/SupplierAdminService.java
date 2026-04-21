@@ -15,17 +15,17 @@ public class SupplierAdminService {
         this.supplierRepository = supplierRepository;
     }
 
-    // ajouter supplier
+    // Add supplier
     public Supplier addSupplier(Supplier supplier) {
         return supplierRepository.save(supplier);
     }
 
-    // liste suppliers
+    // List suppliers
     public List<Supplier> getAllSuppliers() {
         return supplierRepository.findAll();
     }
 
-    // update supplier
+    // Update supplier
     public Supplier updateSupplier(Long id, Supplier supplier) {
 
         Supplier s = supplierRepository.findById(id).orElse(null);
@@ -42,7 +42,7 @@ public class SupplierAdminService {
         return null;
     }
 
-    // delete supplier
+    // Delete supplier
     public void deleteSupplier(Long id) {
         supplierRepository.deleteById(id);
     }

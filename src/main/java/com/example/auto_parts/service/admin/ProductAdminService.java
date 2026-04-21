@@ -15,6 +15,7 @@ public class ProductAdminService {
         this.productRepository = productRepository;
     }
 
+    // Create product
     public Product addProduct(Product product) {
 
         double ht = product.getPurchasePrice() * 1.19;
@@ -33,7 +34,7 @@ public class ProductAdminService {
         return productRepository.findById(id).orElse(null);
     }
 
-    
+    // Update product
     public Product updateProduct(Long id, Product product) {
 
         Product p = getProductById(id);
@@ -60,7 +61,7 @@ public class ProductAdminService {
         productRepository.deleteById(id);
     }
 
-    // mettre à jour le stock
+    // Update stock
     public Product updateStock(Long id, Integer quantity) {
         Product product = getProductById(id);
 
@@ -72,7 +73,7 @@ public class ProductAdminService {
         return null;
     }
 
-    // obtenir le niveau du stock
+    // Get stock level
     public Integer getStockLevel(Long id) {
     Product product = getProductById(id);
 

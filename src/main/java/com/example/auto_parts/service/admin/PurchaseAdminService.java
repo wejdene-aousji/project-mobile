@@ -21,7 +21,7 @@ public class PurchaseAdminService {
         this.productRepository = productRepository;
     }
 
-    // CREATE PURCHASE + STOCK UPDATE
+    // Create purchase + stock update
     public Purchase createPurchase(Purchase purchase) {
 
         double total = 0;
@@ -39,7 +39,7 @@ public class PurchaseAdminService {
 
             total += subtotal;
 
-            // 🔥 STOCK UPDATE
+            // Stock update
             product.setStockQuantity(product.getStockQuantity() + line.getQuantity());
             productRepository.save(product);
         }
@@ -49,12 +49,12 @@ public class PurchaseAdminService {
         return purchaseRepository.save(purchase);
     }
 
-    // GET ALL PURCHASES
+    // Get all purchases
     public List<Purchase> getAllPurchases() {
         return purchaseRepository.findAll();
     }
 
-    // UPDATE STOCK (RECALCULATE)
+    // Update stock after purchase deletion
     public void updatePurchaseStock(Long purchaseId) {
 
         Purchase purchase = purchaseRepository.findById(purchaseId)

@@ -17,32 +17,39 @@ public class SaleAdminController {
         this.saleAdminService = saleAdminService;
     }
 
-    // create general sale
+    // Create general sale
     @PostMapping
     public Order createSale(@RequestBody Order order) {
         return saleAdminService.createSale(order);
     }
 
-    // online sale
+    // Create online sale
     @PostMapping("/online")
     public Order createOnlineSale(@RequestBody Order order) {
         return saleAdminService.createOnlineSale(order);
     }
 
-    // in store sale
+    // Create in-store sale
     @PostMapping("/store")
     public Order createInStoreSale(@RequestBody Order order) {
         return saleAdminService.createInStoreSale(order);
     }
 
-    // get all sales
+    // Get all sales
     @GetMapping
     public List<Order> getAllSales() {
         return saleAdminService.getAllSales();
     }
 
+    // Get sale by status
     @GetMapping("/status/{status}")
     public List<Order> getSalesByStatus(@PathVariable OrderStatus status) {
         return saleAdminService.getSalesByStatus(status);
+    }
+
+    // Cancel sale
+    @PutMapping("/{id}/cancel")
+    public Order cancelSale(@PathVariable Long id) {
+        return saleAdminService.cancelSale(id);
     }
 }

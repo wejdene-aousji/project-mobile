@@ -35,6 +35,7 @@ public class QuoteAdminController {
         return quoteAdminService.rejectQuote(id);
     }
 
+    // GET QUOTES BY STATUS
     @GetMapping("/status/{status}")
     public List<Quote> getQuotesByStatus(@PathVariable QuoteStatus status) {
         return quoteAdminService.getQuotesByStatus(status);

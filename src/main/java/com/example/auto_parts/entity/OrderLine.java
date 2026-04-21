@@ -14,9 +14,9 @@ public class OrderLine {
     private Long orderLineId;
 
     @ManyToOne
-@JoinColumn(name = "order_id")
-@JsonBackReference
-private Order order;
+    @JoinColumn(name = "order_id")
+    @JsonBackReference
+    private Order order;
 
     @ManyToOne
     @JoinColumn(name = "product_id")

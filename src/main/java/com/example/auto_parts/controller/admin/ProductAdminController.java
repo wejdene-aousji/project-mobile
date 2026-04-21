@@ -16,43 +16,43 @@ public class ProductAdminController {
         this.productAdminService = productAdminService;
     }
 
-    // Ajouter produit
+    // Add product
     @PostMapping
     public Product addProduct(@RequestBody Product product) {
         return productAdminService.addProduct(product);
     }
 
-    // Liste produits
+    // List products
     @GetMapping
     public List<Product> getAllProducts() {
         return productAdminService.getAllProducts();
     }
 
-    // Produit par ID
+    // Product by ID
     @GetMapping("/{id}")
     public Product getProductById(@PathVariable Long id) {
         return productAdminService.getProductById(id);
     }
 
-    // Mise à jour produit
+    // Update product
     @RequestMapping(value = "/{id}", method = {RequestMethod.PUT, RequestMethod.PATCH})
     public Product updateProduct(@PathVariable Long id, @RequestBody Product product) {
         return productAdminService.updateProduct(id, product);
     }
 
-    // Suppression produit
+    // Delete product
     @DeleteMapping("/{id}")
     public void deleteProduct(@PathVariable Long id) {
         productAdminService.deleteProduct(id);
     }
 
-    // Mise à jour de stock
+    // Update stock
     @PutMapping("/{id}/stock")
     public Product updateStock(@PathVariable Long id, @RequestParam Integer quantity) {
         return productAdminService.updateStock(id, quantity);
     }
 
-    // Obtenir niveau de stock
+    // Get stock level
     @GetMapping("/{id}/stock")
     public Integer getStockLevel(@PathVariable Long id) {
         return productAdminService.getStockLevel(id);
