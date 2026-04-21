@@ -35,7 +35,7 @@ public class ProductAdminController {
     }
 
     // Mise à jour produit
-    @PutMapping("/{id}")
+    @RequestMapping(value = "/{id}", method = {RequestMethod.PUT, RequestMethod.PATCH})
     public Product updateProduct(@PathVariable Long id, @RequestBody Product product) {
         return productAdminService.updateProduct(id, product);
     }

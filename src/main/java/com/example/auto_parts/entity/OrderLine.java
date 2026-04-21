@@ -1,5 +1,7 @@
 package com.example.auto_parts.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+
 import jakarta.persistence.*;
 
 @Entity
@@ -12,8 +14,9 @@ public class OrderLine {
     private Long orderLineId;
 
     @ManyToOne
-    @JoinColumn(name = "order_id")
-    private Order order;
+@JoinColumn(name = "order_id")
+@JsonBackReference
+private Order order;
 
     @ManyToOne
     @JoinColumn(name = "product_id")

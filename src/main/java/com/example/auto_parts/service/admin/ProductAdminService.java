@@ -16,9 +16,15 @@ public class ProductAdminService {
     }
 
     public Product addProduct(Product product) {
+
+        double ht = product.getPurchasePrice() * 1.19;
+        double ttc = ht * 1.4;
+
+        product.setPriceHT(ht);
+        product.setPriceTTC(ttc);
+
         return productRepository.save(product);
     }
-
     public List<Product> getAllProducts() {
         return productRepository.findAll();
     }
@@ -27,23 +33,28 @@ public class ProductAdminService {
         return productRepository.findById(id).orElse(null);
     }
 
+    
     public Product updateProduct(Long id, Product product) {
-    Product p = getProductById(id);
 
-    if (p != null) {
-        p.setName(product.getName());
-        p.setCode(product.getCode());
-        p.setPriceHT(product.getPriceHT());
-        p.setPriceTTC(product.getPriceTTC());
-        p.setPurchasePrice(product.getPurchasePrice());
-        p.setStockQuantity(product.getStockQuantity());
-        p.setUrl(product.getUrl());
+        Product p = getProductById(id);
+
+        if (product.getPurchasePrice() != null) {
+            p.setPurchasePrice(product.getPurchasePrice());
+
+            double ht = product.getPurchasePrice() * 1.19;
+            double ttc = ht * 1.4;
+
+            p.setPriceHT(ht);
+            p.setPriceTTC(ttc);
+        }
+
+        if (product.getName() != null) p.setName(product.getName());
+        if (product.getCode() != null) p.setCode(product.getCode());
+        if (product.getStockQuantity() != null) p.setStockQuantity(product.getStockQuantity());
+        if (product.getUrl() != null) p.setUrl(product.getUrl());
 
         return productRepository.save(p);
     }
-
-    return null;
-}
 
     public void deleteProduct(Long id) {
         productRepository.deleteById(id);
