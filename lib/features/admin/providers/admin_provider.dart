@@ -11,38 +11,183 @@ class AdminUser {
   final String id;
   final String name;
   final String email;
+  final String? password;
   final String phone;
-  final String role; // 'admin', 'user'
+  final String role;
   final DateTime createdAt;
 
   AdminUser({
     required this.id,
     required this.name,
     required this.email,
+    this.password,
     required this.phone,
     required this.role,
     required this.createdAt,
   });
 
   factory AdminUser.fromJson(Map<String, dynamic> json) {
+    final createdRaw = json['created_at'] ?? json['createdAt'];
     return AdminUser(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      email: json['email'] as String,
-      phone: json['phone'] as String,
-      role: json['role'] as String? ?? 'user',
-      createdAt: DateTime.parse(json['created_at'] as String),
+      id: (json['id'] ?? json['userId'] ?? '').toString(),
+      name: (json['name'] ?? json['fullName'] ?? '').toString(),
+      email: (json['email'] ?? '').toString(),
+      password: json['password']?.toString(),
+      phone: (json['phone'] ?? '').toString(),
+      role: (json['role'] ?? 'CLIENT').toString(),
+      createdAt: createdRaw is String
+          ? (DateTime.tryParse(createdRaw) ?? DateTime.now())
+          : DateTime.now(),
     );
   }
 
   Map<String, dynamic> toJson() {
+    final numericId = int.tryParse(id);
     return {
       'id': id,
+      'userId': numericId,
       'name': name,
+      'fullName': name,
       'email': email,
+      'password': password,
       'phone': phone,
       'role': role,
+      'createdAt': createdAt.toIso8601String(),
       'created_at': createdAt.toIso8601String(),
+    };
+  }
+}
+
+class AdminSupplier {
+  final String id;
+  final String name;
+  final String phone;
+  final String email;
+  final String address;
+
+  AdminSupplier({
+    required this.id,
+    required this.name,
+    required this.phone,
+    required this.email,
+    required this.address,
+  });
+
+  factory AdminSupplier.fromJson(Map<String, dynamic> json) {
+    return AdminSupplier(
+      id: (json['id'] ?? json['supplierId'] ?? '').toString(),
+      name: (json['name'] ?? '').toString(),
+      phone: (json['phone'] ?? '').toString(),
+      email: (json['email'] ?? '').toString(),
+      address: (json['address'] ?? '').toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    final numericId = int.tryParse(id);
+    return {
+      'supplierId': numericId,
+      'name': name,
+      'phone': phone,
+      'email': email,
+      'address': address,
+    };
+  }
+}
+
+class AdminPurchaseLine {
+  final String id;
+  final int quantity;
+  final double unitCost;
+  final double subtotal;
+  final Product product;
+
+  AdminPurchaseLine({
+    required this.id,
+    required this.quantity,
+    required this.unitCost,
+    required this.subtotal,
+    required this.product,
+  });
+
+  factory AdminPurchaseLine.fromJson(Map<String, dynamic> json) {
+    final quantity = json['quantity'] is int
+        ? json['quantity'] as int
+        : int.tryParse('${json['quantity']}') ?? 0;
+    final unitCost = json['unitCost'] is num
+        ? (json['unitCost'] as num).toDouble()
+        : double.tryParse('${json['unitCost']}') ?? 0;
+    final subtotal = json['subtotal'] is num
+        ? (json['subtotal'] as num).toDouble()
+        : double.tryParse('${json['subtotal']}') ?? (quantity * unitCost).toDouble();
+
+    return AdminPurchaseLine(
+      id: (json['purchaseLineId'] ?? json['id'] ?? '').toString(),
+      quantity: quantity,
+      unitCost: unitCost,
+      subtotal: subtotal,
+      product: Product.fromJson((json['product'] ?? <String, dynamic>{}) as Map<String, dynamic>),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    final numericLineId = int.tryParse(id);
+    return {
+      if (numericLineId != null) 'purchaseLineId': numericLineId,
+      'quantity': quantity,
+      'unitCost': unitCost,
+      'subtotal': subtotal,
+      'product': product.toJson(),
+    };
+  }
+}
+
+class AdminPurchase {
+  final String id;
+  final double totalCost;
+  final DateTime purchaseDate;
+  final List<AdminPurchaseLine> lines;
+  final AdminSupplier supplier;
+
+  AdminPurchase({
+    required this.id,
+    required this.totalCost,
+    required this.purchaseDate,
+    required this.lines,
+    required this.supplier,
+  });
+
+  factory AdminPurchase.fromJson(Map<String, dynamic> json) {
+    final totalCost = json['totalCost'] is num
+        ? (json['totalCost'] as num).toDouble()
+        : double.tryParse('${json['totalCost']}') ?? 0;
+
+    final purchaseDateRaw = json['purchaseDate']?.toString();
+    final purchaseDate = purchaseDateRaw != null
+        ? DateTime.tryParse(purchaseDateRaw) ?? DateTime.now()
+        : DateTime.now();
+
+    final linesJson = (json['lines'] as List?) ?? const [];
+
+    return AdminPurchase(
+      id: (json['purchaseId'] ?? json['id'] ?? '').toString(),
+      totalCost: totalCost,
+      purchaseDate: purchaseDate,
+      lines: linesJson
+          .map((line) => AdminPurchaseLine.fromJson(line as Map<String, dynamic>))
+          .toList(),
+      supplier: AdminSupplier.fromJson((json['supplier'] ?? <String, dynamic>{}) as Map<String, dynamic>),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    final numericPurchaseId = int.tryParse(id);
+    return {
+      if (numericPurchaseId != null) 'purchaseId': numericPurchaseId,
+      'totalCost': totalCost,
+      'purchaseDate': purchaseDate.toIso8601String().split('T').first,
+      'lines': lines.map((line) => line.toJson()).toList(),
+      'supplier': supplier.toJson(),
     };
   }
 }
@@ -56,6 +201,8 @@ class AdminProvider extends ChangeNotifier {
   List<Quote> _quotes = [];
   List<Product> _products = [];
   List<AdminUser> _users = [];
+  List<AdminSupplier> _suppliers = [];
+  List<AdminPurchase> _purchases = [];
 
   // State
   bool _isLoading = false;
@@ -73,6 +220,8 @@ class AdminProvider extends ChangeNotifier {
   List<Quote> get quotes => _quotes;
   List<Product> get products => _products;
   List<AdminUser> get users => _users;
+  List<AdminSupplier> get suppliers => _suppliers;
+  List<AdminPurchase> get purchases => _purchases;
   bool get isLoading => _isLoading;
   String? get error => _error;
   Map<String, dynamic> get stats => _stats;
@@ -286,7 +435,7 @@ class AdminProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      if (AppConfig.useMockApi) {
+      if (AppConfig.useMockApi && !AppConfig.useRealProductsApi) {
         _products = await _mockApiService.fetchAllProducts();
         _error = null;
         _isLoading = false;
@@ -320,20 +469,23 @@ class AdminProvider extends ChangeNotifier {
   }
 
   Future<bool> createProduct({
+    String? productId,
+    required String code,
     required String name,
-    required String description,
-    required double price,
-    required int stock,
-    String? category,
+    required int stockQuantity,
+    required double purchasePrice,
+    required double priceHT,
+    required double priceTTC,
+    String? url,
   }) async {
     try {
-      if (AppConfig.useMockApi) {
+      if (AppConfig.useMockApi && !AppConfig.useRealProductsApi) {
         final success = await _mockApiService.createProduct(
           name: name,
-          description: description,
-          price: price,
-          stock: stock,
-          category: category,
+          description: code,
+          price: priceTTC,
+          stock: stockQuantity,
+          category: 'General',
         );
         if (!success) {
           _error = 'Failed to create product';
@@ -347,11 +499,15 @@ class AdminProvider extends ChangeNotifier {
       final response = await _apiService.post(
         '/admin/products',
         body: {
+          if (productId != null && productId.isNotEmpty)
+            'productId': int.tryParse(productId) ?? productId,
+          'code': code,
           'name': name,
-          'description': description,
-          'price': price,
-          'stock': stock,
-          'category': category,
+          'stockQuantity': stockQuantity,
+          'purchasePrice': purchasePrice,
+          'priceHT': priceHT,
+          'priceTTC': priceTTC,
+          'url': (url != null && url.trim().isNotEmpty) ? url.trim() : null,
         },
         fromJson: (json) => json,
       );
@@ -376,21 +532,23 @@ class AdminProvider extends ChangeNotifier {
 
   Future<bool> updateProduct({
     required String productId,
+    required String code,
     required String name,
-    required String description,
-    required double price,
-    required int stock,
-    String? category,
+    required int stockQuantity,
+    required double purchasePrice,
+    required double priceHT,
+    required double priceTTC,
+    String? url,
   }) async {
     try {
-      if (AppConfig.useMockApi) {
+      if (AppConfig.useMockApi && !AppConfig.useRealProductsApi) {
         final success = await _mockApiService.updateProduct(
           productId: productId,
           name: name,
-          description: description,
-          price: price,
-          stock: stock,
-          category: category,
+          description: code,
+          price: priceTTC,
+          stock: stockQuantity,
+          category: 'General',
         );
         if (!success) {
           _error = 'Failed to update product';
@@ -401,14 +559,17 @@ class AdminProvider extends ChangeNotifier {
         return true;
       }
 
-      final response = await _apiService.put(
+      final response = await _apiService.patch(
         '/admin/products/$productId',
         body: {
+          'productId': int.tryParse(productId) ?? productId,
+          'code': code,
           'name': name,
-          'description': description,
-          'price': price,
-          'stock': stock,
-          'category': category,
+          'stockQuantity': stockQuantity,
+          'purchasePrice': purchasePrice,
+          'priceHT': priceHT,
+          'priceTTC': priceTTC,
+          'url': (url != null && url.trim().isNotEmpty) ? url.trim() : null,
         },
         fromJson: (json) => json,
       );
@@ -435,7 +596,7 @@ class AdminProvider extends ChangeNotifier {
 
   Future<bool> deleteProduct(String productId) async {
     try {
-      if (AppConfig.useMockApi) {
+      if (AppConfig.useMockApi && !AppConfig.useRealProductsApi) {
         final success = await _mockApiService.deleteProduct(productId);
         if (!success) {
           _error = 'Failed to delete product';
@@ -473,22 +634,24 @@ class AdminProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      if (AppConfig.useMockApi) {
+      if (AppConfig.useMockApi && !AppConfig.useRealUsersApi) {
         _users = [
           AdminUser(
             id: 'USR001',
             name: 'System Admin',
             email: 'admin@test.com',
+            password: null,
             phone: '+1-555-0001',
-            role: 'admin',
+            role: 'ADMIN',
             createdAt: DateTime.now().subtract(Duration(days: 100)),
           ),
           AdminUser(
             id: 'USR002',
             name: 'Client User',
             email: 'user@test.com',
+            password: null,
             phone: '+1-555-0002',
-            role: 'user',
+            role: 'CLIENT',
             createdAt: DateTime.now().subtract(Duration(days: 40)),
           ),
         ];
@@ -499,14 +662,14 @@ class AdminProvider extends ChangeNotifier {
       }
 
       final response = await _apiService.get(
-        '/admin/users',
+        '/admin/customers',
         fromJson: (json) => json,
       );
 
       if (response.success && response.data != null) {
         final List<dynamic> usersJson = response.data is List
             ? response.data
-            : response.data['users'] ?? response.data['data'] ?? [];
+            : response.data['customers'] ?? response.data['users'] ?? response.data['data'] ?? [];
 
         _users = usersJson
             .map((json) => AdminUser.fromJson(json as Map<String, dynamic>))
@@ -523,16 +686,73 @@ class AdminProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<bool> createUser({
+    required String fullName,
+    required String email,
+    required String phone,
+    required String role,
+    required String password,
+  }) async {
+    try {
+      if (AppConfig.useMockApi && !AppConfig.useRealUsersApi) {
+        _users.insert(
+          0,
+          AdminUser(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            name: fullName,
+            email: email,
+            password: password,
+            phone: phone,
+            role: role,
+            createdAt: DateTime.now(),
+          ),
+        );
+        _error = null;
+        return true;
+      }
+
+      final response = await _apiService.post(
+        '/admin/customers',
+        body: {
+          'fullName': fullName,
+          'email': email,
+          'password': password,
+          'phone': phone,
+          'role': role,
+          'createdAt': DateTime.now().toIso8601String(),
+        },
+        fromJson: (json) => json,
+      );
+
+      if (response.success && response.data != null) {
+        final raw = response.data is Map<String, dynamic>
+            ? response.data
+            : response.data['customer'] ?? response.data['data'];
+        _users.insert(0, AdminUser.fromJson(raw as Map<String, dynamic>));
+        _error = null;
+        return true;
+      }
+
+      _error = response.error ?? 'Failed to create user';
+      return false;
+    } catch (e) {
+      _error = 'Error creating user: $e';
+      return false;
+    } finally {
+      notifyListeners();
+    }
+  }
+
   Future<bool> deleteUser(String userId) async {
     try {
-      if (AppConfig.useMockApi) {
+      if (AppConfig.useMockApi && !AppConfig.useRealUsersApi) {
         _users.removeWhere((u) => u.id == userId);
         _error = null;
         return true;
       }
 
       final response = await _apiService.delete(
-        '/admin/users/$userId',
+        '/admin/customers/$userId',
         fromJson: (json) => json,
       );
 
@@ -545,6 +765,390 @@ class AdminProvider extends ChangeNotifier {
       }
     } catch (e) {
       _error = 'Error deleting user: $e';
+      return false;
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  // ============ Suppliers Management ============
+  Future<void> fetchAllSuppliers() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      if (AppConfig.useMockApi && !AppConfig.useRealSuppliersApi) {
+        _suppliers = [
+          AdminSupplier(
+            id: 'SUP001',
+            name: 'Auto Parts Global',
+            phone: '+1-555-0101',
+            email: 'contact@autopartsglobal.test',
+            address: '123 Industrial Road',
+          ),
+          AdminSupplier(
+            id: 'SUP002',
+            name: 'Engine Components Ltd',
+            phone: '+1-555-0102',
+            email: 'sales@enginecomponents.test',
+            address: '45 Mechanic Avenue',
+          ),
+        ];
+        _error = null;
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
+
+      final response = await _apiService.get(
+        '/admin/suppliers',
+        fromJson: (json) => json,
+      );
+
+      if (response.success && response.data != null) {
+        final List<dynamic> suppliersJson = response.data is List
+            ? response.data
+            : response.data['suppliers'] ?? response.data['data'] ?? [];
+
+        _suppliers = suppliersJson
+            .map((json) => AdminSupplier.fromJson(json as Map<String, dynamic>))
+            .toList();
+        _error = null;
+      } else {
+        _error = response.error ?? 'Failed to fetch suppliers';
+      }
+    } catch (e) {
+      _error = 'Error fetching suppliers: $e';
+    }
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  Future<bool> createSupplier({
+    required String name,
+    required String phone,
+    required String email,
+    required String address,
+  }) async {
+    try {
+      if (AppConfig.useMockApi && !AppConfig.useRealSuppliersApi) {
+        _suppliers.add(
+          AdminSupplier(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            name: name,
+            phone: phone,
+            email: email,
+            address: address,
+          ),
+        );
+        _error = null;
+        return true;
+      }
+
+      final response = await _apiService.post(
+        '/admin/suppliers',
+        body: {
+          'name': name,
+          'phone': phone,
+          'email': email,
+          'address': address,
+        },
+        fromJson: (json) => json,
+      );
+
+      if (response.success && response.data != null) {
+        final raw = response.data is Map<String, dynamic>
+            ? response.data
+            : response.data['supplier'] ?? response.data['data'];
+        _suppliers.add(AdminSupplier.fromJson(raw as Map<String, dynamic>));
+        _error = null;
+        return true;
+      }
+
+      _error = response.error ?? 'Failed to create supplier';
+      return false;
+    } catch (e) {
+      _error = 'Error creating supplier: $e';
+      return false;
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  Future<bool> updateSupplier({
+    required String supplierId,
+    required String name,
+    required String phone,
+    required String email,
+    required String address,
+  }) async {
+    try {
+      if (AppConfig.useMockApi && !AppConfig.useRealSuppliersApi) {
+        final index = _suppliers.indexWhere((s) => s.id == supplierId);
+        if (index == -1) {
+          _error = 'Supplier not found';
+          return false;
+        }
+        _suppliers[index] = AdminSupplier(
+          id: supplierId,
+          name: name,
+          phone: phone,
+          email: email,
+          address: address,
+        );
+        _error = null;
+        return true;
+      }
+
+      final response = await _apiService.put(
+        '/admin/suppliers/$supplierId',
+        body: {
+          'supplierId': int.tryParse(supplierId) ?? supplierId,
+          'name': name,
+          'phone': phone,
+          'email': email,
+          'address': address,
+        },
+        fromJson: (json) => json,
+      );
+
+      if (response.success && response.data != null) {
+        final raw = response.data is Map<String, dynamic>
+            ? response.data
+            : response.data['supplier'] ?? response.data['data'];
+        final updated = AdminSupplier.fromJson(raw as Map<String, dynamic>);
+        final index = _suppliers.indexWhere((s) => s.id == supplierId);
+        if (index != -1) {
+          _suppliers[index] = updated;
+        } else {
+          _suppliers.add(updated);
+        }
+        _error = null;
+        return true;
+      }
+
+      _error = response.error ?? 'Failed to update supplier';
+      return false;
+    } catch (e) {
+      _error = 'Error updating supplier: $e';
+      return false;
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  Future<bool> deleteSupplier(String supplierId) async {
+    try {
+      if (AppConfig.useMockApi && !AppConfig.useRealSuppliersApi) {
+        _suppliers.removeWhere((s) => s.id == supplierId);
+        _error = null;
+        return true;
+      }
+
+      final response = await _apiService.delete(
+        '/admin/suppliers/$supplierId',
+        fromJson: (json) => json,
+      );
+
+      if (response.success) {
+        _suppliers.removeWhere((s) => s.id == supplierId);
+        _error = null;
+        return true;
+      }
+
+      _error = response.error ?? 'Failed to delete supplier';
+      return false;
+    } catch (e) {
+      _error = 'Error deleting supplier: $e';
+      return false;
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  // ============ Purchases Management ============
+  Future<void> fetchAllPurchases() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      if (AppConfig.useMockApi && !AppConfig.useRealPurchasesApi) {
+        _purchases = [];
+        _error = null;
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
+
+      final response = await _apiService.get(
+        '/admin/purchases',
+        fromJson: (json) => json,
+      );
+
+      if (response.success && response.data != null) {
+        final List<dynamic> purchasesJson = response.data is List
+            ? response.data
+            : response.data['purchases'] ?? response.data['data'] ?? [];
+
+        _purchases = purchasesJson
+            .map((json) => AdminPurchase.fromJson(json as Map<String, dynamic>))
+            .toList();
+        _error = null;
+      } else {
+        _error = response.error ?? 'Failed to fetch purchases';
+      }
+    } catch (e) {
+      _error = 'Error fetching purchases: $e';
+    }
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  Future<bool> createPurchase({
+    required DateTime purchaseDate,
+    required AdminSupplier supplier,
+    required List<AdminPurchaseLine> lines,
+  }) async {
+    try {
+      final totalCost = lines.fold<double>(0, (sum, line) => sum + line.subtotal);
+
+      if (AppConfig.useMockApi && !AppConfig.useRealPurchasesApi) {
+        _purchases.insert(
+          0,
+          AdminPurchase(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            totalCost: totalCost,
+            purchaseDate: purchaseDate,
+            lines: lines,
+            supplier: supplier,
+          ),
+        );
+        _error = null;
+        return true;
+      }
+
+      final response = await _apiService.post(
+        '/admin/purchases',
+        body: {
+          'totalCost': totalCost,
+          'purchaseDate': purchaseDate.toIso8601String().split('T').first,
+          'lines': lines.map((line) => line.toJson()).toList(),
+          'supplier': supplier.toJson(),
+        },
+        fromJson: (json) => json,
+      );
+
+      if (response.success && response.data != null) {
+        final raw = response.data is Map<String, dynamic>
+            ? response.data
+            : response.data['purchase'] ?? response.data['data'];
+        _purchases.insert(0, AdminPurchase.fromJson(raw as Map<String, dynamic>));
+        _error = null;
+        return true;
+      }
+
+      _error = response.error ?? 'Failed to create purchase';
+      return false;
+    } catch (e) {
+      _error = 'Error creating purchase: $e';
+      return false;
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  Future<AdminUser?> fetchUserById(String userId) async {
+    try {
+      if (AppConfig.useMockApi && !AppConfig.useRealUsersApi) {
+        final index = _users.indexWhere((u) => u.id == userId);
+        return index == -1 ? null : _users[index];
+      }
+
+      final response = await _apiService.get(
+        '/admin/customers/$userId',
+        fromJson: (json) => json,
+      );
+
+      if (response.success && response.data != null) {
+        final raw = response.data is Map<String, dynamic>
+            ? response.data
+            : response.data['customer'] ?? response.data['data'];
+        return AdminUser.fromJson(raw as Map<String, dynamic>);
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<bool> updateUser({
+    required String userId,
+    required String fullName,
+    required String email,
+    required String phone,
+    required String role,
+    String? password,
+    DateTime? createdAt,
+  }) async {
+    try {
+      if (AppConfig.useMockApi && !AppConfig.useRealUsersApi) {
+        final index = _users.indexWhere((u) => u.id == userId);
+        if (index == -1) {
+          _error = 'User not found';
+          return false;
+        }
+        final existing = _users[index];
+        _users[index] = AdminUser(
+          id: existing.id,
+          name: fullName,
+          email: email,
+          password: password ?? existing.password,
+          phone: phone,
+          role: role,
+          createdAt: createdAt ?? existing.createdAt,
+        );
+        _error = null;
+        return true;
+      }
+
+      final response = await _apiService.put(
+        '/admin/customers/$userId',
+        body: {
+          'userId': int.tryParse(userId) ?? userId,
+          'fullName': fullName,
+          'email': email,
+          'password': password ?? '',
+          'phone': phone,
+          'role': role,
+          'createdAt': (createdAt ?? DateTime.now()).toIso8601String(),
+        },
+        fromJson: (json) => json,
+      );
+
+      if (response.success && response.data != null) {
+        final raw = response.data is Map<String, dynamic>
+            ? response.data
+            : response.data['customer'] ?? response.data['data'];
+        final updated = AdminUser.fromJson(raw as Map<String, dynamic>);
+
+        final index = _users.indexWhere((u) => u.id == userId);
+        if (index != -1) {
+          _users[index] = updated;
+        } else {
+          _users.add(updated);
+        }
+        _error = null;
+        return true;
+      }
+
+      _error = response.error ?? 'Failed to update user';
+      return false;
+    } catch (e) {
+      _error = 'Error updating user: $e';
       return false;
     } finally {
       notifyListeners();
@@ -582,6 +1186,8 @@ class AdminProvider extends ChangeNotifier {
     final totalOrders = _orders.length;
     final totalQuotes = _quotes.length;
     final totalProducts = _products.length;
+    final totalSuppliers = _suppliers.length;
+    final totalPurchases = _purchases.length;
     final totalUsers = _users.length;
 
     final pendingOrders = _orders.where((o) => o.status == 'pending').length;
@@ -595,6 +1201,8 @@ class AdminProvider extends ChangeNotifier {
       'total_orders': totalOrders,
       'total_quotes': totalQuotes,
       'total_products': totalProducts,
+      'total_suppliers': totalSuppliers,
+      'total_purchases': totalPurchases,
       'total_users': totalUsers,
       'pending_orders': pendingOrders,
       'pending_quotes': pendingQuotes,

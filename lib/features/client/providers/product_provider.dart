@@ -43,15 +43,17 @@ class ProductProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      if (AppConfig.useMockApi) {
+      if (AppConfig.useMockApi && !AppConfig.useRealProductsApi) {
         _products = await _mockApiService.fetchAllProducts();
         _applyFilters();
         return;
       }
 
       final response = await apiService.get<Map<String, dynamic>>(
-        '/products',
-        fromJson: (json) => json as Map<String, dynamic>,
+        '/admin/products',
+        fromJson: (json) => json is Map<String, dynamic>
+            ? json
+            : {'data': json},
       );
 
       if (response.success && response.data != null) {
@@ -78,7 +80,7 @@ class ProductProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      if (AppConfig.useMockApi) {
+      if (AppConfig.useMockApi && !AppConfig.useRealProductsApi) {
         _selectedProduct = await _mockApiService.fetchProductById(productId);
         if (_selectedProduct == null) {
           _error = 'Product not found';
@@ -87,7 +89,7 @@ class ProductProvider extends ChangeNotifier {
       }
 
       final response = await apiService.get<Map<String, dynamic>>(
-        '/products/$productId',
+        '/admin/products/$productId',
         fromJson: (json) => json as Map<String, dynamic>,
       );
 

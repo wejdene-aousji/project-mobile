@@ -13,6 +13,8 @@ import 'features/admin/screens/admin_dashboard_screen.dart';
 import 'features/admin/screens/admin_orders_management_screen.dart';
 import 'features/admin/screens/admin_quotes_management_screen.dart';
 import 'features/admin/screens/admin_products_management_screen.dart';
+import 'features/admin/screens/admin_suppliers_management_screen.dart';
+import 'features/admin/screens/admin_purchases_management_screen.dart';
 import 'features/admin/screens/admin_users_management_screen.dart';
 import 'features/admin/screens/admin_analytics_screen.dart';
 import 'features/admin/screens/admin_settings_screen.dart';
@@ -186,6 +188,14 @@ class MyApp extends StatelessWidget {
       case '/admin/products':
         return MaterialPageRoute(
           builder: (_) => const AdminProductsManagementScreen(),
+        );
+      case '/admin/suppliers':
+        return MaterialPageRoute(
+          builder: (_) => const AdminSuppliersManagementScreen(),
+        );
+      case '/admin/purchases':
+        return MaterialPageRoute(
+          builder: (_) => const AdminPurchasesManagementScreen(),
         );
       case '/admin/users':
         return MaterialPageRoute(

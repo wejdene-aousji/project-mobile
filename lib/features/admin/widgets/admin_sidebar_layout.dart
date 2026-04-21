@@ -102,6 +102,16 @@ class _AdminSidebarContent extends StatelessWidget {
           onTap: () => onNavigate(AppRoutes.adminProducts),
         ),
         _SidebarTile(
+          icon: Icons.local_shipping,
+          label: 'Suppliers',
+          onTap: () => onNavigate(AppRoutes.adminSuppliers),
+        ),
+        _SidebarTile(
+          icon: Icons.receipt_long,
+          label: 'Purchases',
+          onTap: () => onNavigate(AppRoutes.adminPurchases),
+        ),
+        _SidebarTile(
           icon: Icons.people,
           label: 'Users',
           onTap: () => onNavigate(AppRoutes.adminUsers),

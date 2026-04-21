@@ -21,7 +21,9 @@ class _ProductsListScreenState extends State<ProductsListScreen> {
   void initState() {
     super.initState();
     _productProvider = context.read<ProductProvider>();
-    _productProvider.fetchProducts();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _productProvider.fetchProducts();
+    });
   }
 
   @override

@@ -6,9 +6,18 @@ class AppConfig {
 
   // Mock API - Set to true to use mock API service instead of real backend
   static const bool useMockApi = true;
+  static const bool useRealProductsApi = true;
+  static const bool useRealUsersApi = true;
+  static const bool useRealSuppliersApi = true;
+  static const bool useRealPurchasesApi = true;
+
+  // Cloudinary (frontend-safe values only)
+  // Do not put ApiSecret in Flutter client code.
+  static const String cloudinaryCloudName = 'diflwnbtb';
+  static const String cloudinaryUploadPreset = 'flutter';
 
   // API Configuration - Can be changed at runtime
-  static String _apiBaseUrl = 'http://localhost:8000/api';
+  static String _apiBaseUrl = 'http://localhost:8080';
   static const String _apiTimeoutSeconds = '30';
 
   /// Get the current API base URL

@@ -50,6 +50,14 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               child: Text('Products'),
             ),
             PopupMenuItem(
+              value: AppRoutes.adminSuppliers,
+              child: Text('Suppliers'),
+            ),
+            PopupMenuItem(
+              value: AppRoutes.adminPurchases,
+              child: Text('Purchases'),
+            ),
+            PopupMenuItem(
               value: AppRoutes.adminUsers,
               child: Text('Users'),
             ),

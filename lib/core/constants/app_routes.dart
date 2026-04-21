@@ -28,6 +28,8 @@ class AppRoutes {
   static const String adminQuotes = '/admin/quotes';
   static const String adminQuoteDetail = '/admin/quote-detail';
   static const String adminProducts = '/admin/products';
+  static const String adminSuppliers = '/admin/suppliers';
+  static const String adminPurchases = '/admin/purchases';
   static const String adminUsers = '/admin/users';
   static const String adminAnalytics = '/admin/analytics';
   static const String adminSettings = '/admin/settings';

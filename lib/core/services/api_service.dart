@@ -140,6 +140,39 @@ class ApiService {
     }
   }
 
+  /// Make a PATCH request
+  Future<ApiResponse<T>> patch<T>(
+    String endpoint, {
+    required dynamic body,
+    required T Function(dynamic) fromJson,
+  }) async {
+    try {
+      final headers = await _getHeaders();
+      final url = Uri.parse('${AppConfig.apiBaseUrl}$endpoint');
+
+      final response = await _client
+          .patch(
+            url,
+            headers: headers,
+            body: jsonEncode(body),
+          )
+          .timeout(Duration(seconds: AppConfig.apiTimeout));
+
+      return _handleResponse(response, fromJson);
+    } on TimeoutException {
+      return ApiResponse(
+        success: false,
+        error: 'Request timeout',
+        statusCode: 408,
+      );
+    } catch (e) {
+      return ApiResponse(
+        success: false,
+        error: e.toString(),
+      );
+    }
+  }
+
   /// Make a DELETE request
   Future<ApiResponse<T>> delete<T>(
     String endpoint, {
@@ -174,18 +207,25 @@ class ApiService {
     T Function(dynamic) fromJson,
   ) {
     try {
-      final decodedResponse = jsonDecode(response.body);
+      final rawBody = response.body.trim();
+      dynamic decodedResponse = {};
+
+      if (rawBody.isNotEmpty) {
+        decodedResponse = jsonDecode(rawBody);
+      }
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         // Success response
         final data = decodedResponse is Map
             ? decodedResponse['data'] ?? decodedResponse
-            : decodedResponse;
+            : (rawBody.isEmpty ? {} : decodedResponse);
 
         return ApiResponse(
           success: true,
           data: fromJson(data),
-          message: decodedResponse['message'] ?? 'Success',
+          message: decodedResponse is Map
+              ? decodedResponse['message'] ?? 'Success'
+              : 'Success',
           statusCode: response.statusCode,
         );
       } else if (response.statusCode == 401) {
@@ -194,7 +234,9 @@ class ApiService {
           success: false,
           error: 'Unauthorized',
           statusCode: response.statusCode,
-          message: decodedResponse['message'] ?? 'Session expired',
+          message: decodedResponse is Map
+              ? decodedResponse['message'] ?? 'Session expired'
+              : 'Session expired',
         );
       } else if (response.statusCode == 403) {
         // Forbidden
@@ -202,7 +244,9 @@ class ApiService {
           success: false,
           error: 'Forbidden',
           statusCode: response.statusCode,
-          message: decodedResponse['message'] ?? 'Access denied',
+          message: decodedResponse is Map
+              ? decodedResponse['message'] ?? 'Access denied'
+              : 'Access denied',
         );
       } else if (response.statusCode == 404) {
         // Not found
@@ -210,7 +254,9 @@ class ApiService {
           success: false,
           error: 'Not found',
           statusCode: response.statusCode,
-          message: decodedResponse['message'] ?? 'Resource not found',
+          message: decodedResponse is Map
+              ? decodedResponse['message'] ?? 'Resource not found'
+              : 'Resource not found',
         );
       } else if (response.statusCode >= 500) {
         // Server error
@@ -218,15 +264,19 @@ class ApiService {
           success: false,
           error: 'Server error',
           statusCode: response.statusCode,
-          message: decodedResponse['message'] ?? 'Server error',
+          message: decodedResponse is Map
+              ? decodedResponse['message'] ?? 'Server error'
+              : 'Server error',
         );
       } else {
         // Other errors
         return ApiResponse(
           success: false,
-          error: decodedResponse['error'] ?? 'Unknown error',
+          error: decodedResponse is Map
+              ? decodedResponse['error'] ?? 'Unknown error'
+              : 'Unknown error',
           statusCode: response.statusCode,
-          message: decodedResponse['message'],
+          message: decodedResponse is Map ? decodedResponse['message'] : null,
         );
       }
     } catch (e) {

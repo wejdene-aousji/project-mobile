@@ -24,6 +24,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     adminProvider.fetchAllOrders();
     adminProvider.fetchAllQuotes();
     adminProvider.fetchAllProducts();
+    adminProvider.fetchAllSuppliers();
+    adminProvider.fetchAllPurchases();
     adminProvider.fetchAllUsers();
     adminProvider.fetchStatistics();
   }
@@ -154,6 +156,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             title: 'Products',
                             subtitle: '${stats['total_products'] ?? 0} products',
                             onTap: () => Navigator.pushNamed(context, AppRoutes.adminProducts),
+                          ),
+                          _ManagementTile(
+                            icon: Icons.local_shipping,
+                            title: 'Suppliers',
+                            subtitle: '${adminProvider.suppliers.length} suppliers',
+                            onTap: () => Navigator.pushNamed(context, AppRoutes.adminSuppliers),
+                          ),
+                          _ManagementTile(
+                            icon: Icons.receipt_long,
+                            title: 'Purchases',
+                            subtitle: '${adminProvider.purchases.length} purchases',
+                            onTap: () => Navigator.pushNamed(context, AppRoutes.adminPurchases),
                           ),
                           _ManagementTile(
                             icon: Icons.people,
