@@ -12,6 +12,9 @@ class AdminAnalyticsScreen extends StatefulWidget {
 }
 
 class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
+  DateTime _startDate = DateTime.now().subtract(Duration(days: 30));
+  DateTime _endDate = DateTime.now();
+
   @override
   void initState() {
     super.initState();
@@ -21,8 +24,75 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
   void _loadAnalytics() {
     final adminProvider = context.read<AdminProvider>();
     adminProvider.fetchStatistics();
-    adminProvider.fetchAllOrders();
-    adminProvider.fetchAllQuotes();
+    adminProvider.fetchAllProducts();
+    adminProvider.fetchTopProductsStats();
+    adminProvider.fetchLowProductsStats();
+    adminProvider.fetchDailySalesStats();
+    adminProvider.fetchDailyRevenueStats();
+    adminProvider.fetchPeriodRevenue(start: _startDate, end: _endDate);
+  }
+
+  String _resolveProductLabel(String rawKey, AdminProvider adminProvider) {
+    final match = adminProvider.products.where((p) => p.id == rawKey).toList();
+    if (match.isNotEmpty) return match.first.name;
+
+    final numeric = int.tryParse(rawKey);
+    if (numeric != null) {
+      final numericMatch = adminProvider.products
+          .where((p) => int.tryParse(p.id) == numeric)
+          .toList();
+      if (numericMatch.isNotEmpty) return numericMatch.first.name;
+    }
+
+    return 'Product #$rawKey';
+  }
+
+  Future<void> _pickStartDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _startDate,
+      firstDate: DateTime(2000),
+      lastDate: _endDate,
+    );
+
+    if (!mounted) return;
+
+    if (picked != null) {
+      setState(() {
+        _startDate = picked;
+      });
+      await context.read<AdminProvider>().fetchPeriodRevenue(
+            start: _startDate,
+            end: _endDate,
+          );
+    }
+  }
+
+  Future<void> _pickEndDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _endDate,
+      firstDate: _startDate,
+      lastDate: DateTime.now().add(Duration(days: 3650)),
+    );
+
+    if (!mounted) return;
+
+    if (picked != null) {
+      setState(() {
+        _endDate = picked;
+      });
+      await context.read<AdminProvider>().fetchPeriodRevenue(
+            start: _startDate,
+            end: _endDate,
+          );
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '${date.year}-$month-$day';
   }
 
   @override
@@ -32,6 +102,28 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
       child: Consumer<AdminProvider>(
         builder: (context, adminProvider, _) {
           final stats = adminProvider.stats;
+          final topProducts = adminProvider.topProductsStats.entries
+              .map(
+                (entry) => MapEntry(
+                  _resolveProductLabel(entry.key, adminProvider),
+                  entry.value,
+                ),
+              )
+              .toList()
+            ..sort((a, b) => b.value.compareTo(a.value));
+          final lowProducts = adminProvider.lowProductsStats.entries
+              .map(
+                (entry) => MapEntry(
+                  _resolveProductLabel(entry.key, adminProvider),
+                  entry.value,
+                ),
+              )
+              .toList()
+            ..sort((a, b) => a.value.compareTo(b.value));
+          final dailySales = adminProvider.dailySalesStats.entries.toList()
+            ..sort((a, b) => a.key.compareTo(b.key));
+          final dailyRevenue = adminProvider.dailyRevenueStats.entries.toList()
+            ..sort((a, b) => a.key.compareTo(b.key));
 
           return RefreshIndicator(
             onRefresh: () async {
@@ -54,7 +146,7 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                       Expanded(
                         child: _AnalyticsCard(
                           title: 'Total Revenue',
-                          value: '\$${(stats['total_revenue'] ?? 0).toStringAsFixed(2)}',
+                          value: '\$${((stats['total_revenue'] ?? 0) as num).toStringAsFixed(2)}',
                           icon: Icons.trending_up,
                           color: Colors.green,
                         ),
@@ -75,28 +167,27 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                     children: [
                       Expanded(
                         child: _AnalyticsCard(
-                          title: 'Pending Orders',
-                          value: '${stats['pending_orders'] ?? 0}',
-                          icon: Icons.pending_actions,
-                          color: Colors.orange,
+                          title: 'Period Revenue',
+                          value: '\$${adminProvider.periodRevenue.toStringAsFixed(2)}',
+                          icon: Icons.date_range,
+                          color: Colors.teal,
                         ),
                       ),
                       SizedBox(width: 12),
                       Expanded(
                         child: _AnalyticsCard(
-                          title: 'Total Quotes',
-                          value: '${stats['total_quotes'] ?? 0}',
-                          icon: Icons.description,
-                          color: Colors.purple,
+                          title: 'Total Products',
+                          value: '${stats['total_products'] ?? 0}',
+                          icon: Icons.inventory_2,
+                          color: Colors.indigo,
                         ),
                       ),
                     ],
                   ),
                   SizedBox(height: 24),
 
-                  // Order Status Distribution
                   Text(
-                    'Order Status Distribution',
+                    'Period Revenue Range',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 12),
@@ -105,28 +196,38 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                       padding: EdgeInsets.all(16),
                       child: Column(
                         children: [
-                          _StatusRow(
-                            status: 'Pending',
-                            count: adminProvider.orders.where((o) => o.status == 'pending').length,
-                            color: Colors.orange,
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: _pickStartDate,
+                                  icon: Icon(Icons.calendar_today),
+                                  label: Text('Start: ${_formatDate(_startDate)}'),
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: _pickEndDate,
+                                  icon: Icon(Icons.event),
+                                  label: Text('End: ${_formatDate(_endDate)}'),
+                                ),
+                              ),
+                            ],
                           ),
-                          Divider(),
-                          _StatusRow(
-                            status: 'Confirmed',
-                            count: adminProvider.orders.where((o) => o.status == 'confirmed').length,
-                            color: Colors.blue,
-                          ),
-                          Divider(),
-                          _StatusRow(
-                            status: 'Shipped',
-                            count: adminProvider.orders.where((o) => o.status == 'shipped').length,
-                            color: Colors.purple,
-                          ),
-                          Divider(),
-                          _StatusRow(
-                            status: 'Delivered',
-                            count: adminProvider.orders.where((o) => o.status == 'delivered').length,
-                            color: Colors.green,
+                          SizedBox(height: 12),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                context.read<AdminProvider>().fetchPeriodRevenue(
+                                      start: _startDate,
+                                      end: _endDate,
+                                    );
+                              },
+                              icon: Icon(Icons.refresh),
+                              label: Text('Refresh Period Revenue'),
+                            ),
                           ),
                         ],
                       ),
@@ -134,70 +235,52 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                   ),
                   SizedBox(height: 24),
 
-                  // Quote Status Distribution
+                  // Top products
                   Text(
-                    'Quote Status Distribution',
+                    'Top Products',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 12),
-                  CustomCard(
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          _StatusRow(
-                            status: 'Pending',
-                            count: adminProvider.quotes.where((q) => q.status == 'pending').length,
-                            color: Colors.orange,
-                          ),
-                          Divider(),
-                          _StatusRow(
-                            status: 'Accepted',
-                            count: adminProvider.quotes.where((q) => q.status == 'accepted').length,
-                            color: Colors.green,
-                          ),
-                          Divider(),
-                          _StatusRow(
-                            status: 'Rejected',
-                            count: adminProvider.quotes.where((q) => q.status == 'rejected').length,
-                            color: Colors.red,
-                          ),
-                        ],
-                      ),
-                    ),
+                  _StatsMapCard(
+                    emptyLabel: 'No top products data.',
+                    entries: topProducts,
                   ),
                   SizedBox(height: 24),
 
-                  // System Stats
+                  // Low stock products
                   Text(
-                    'System Statistics',
+                    'Low Stock Products',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 12),
-                  CustomCard(
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          _StatRow(
-                            label: 'Total Products',
-                            value: '${stats['total_products'] ?? 0}',
-                          ),
-                          Divider(),
-                          _StatRow(
-                            label: 'Total Users',
-                            value: '${stats['total_users'] ?? 0}',
-                          ),
-                          Divider(),
-                          _StatRow(
-                            label: 'Average Order Value',
-                            value: adminProvider.orders.isEmpty
-                                ? '\$0.00'
-                                : '\$${(adminProvider.orders.fold<double>(0, (sum, o) => sum + o.totalAmount) / adminProvider.orders.length).toStringAsFixed(2)}',
-                          ),
-                        ],
-                      ),
-                    ),
+                  _StatsMapCard(
+                    emptyLabel: 'No low stock products data.',
+                    entries: lowProducts,
+                  ),
+                  SizedBox(height: 24),
+
+                  // Daily sales
+                  Text(
+                    'Daily Sales',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 12),
+                  _StatsMapCard(
+                    emptyLabel: 'No daily sales data.',
+                    entries: dailySales,
+                  ),
+                  SizedBox(height: 24),
+
+                  // Daily revenue
+                  Text(
+                    'Daily Revenue',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 12),
+                  _StatsMapCard(
+                    emptyLabel: 'No daily revenue data.',
+                    entries: dailyRevenue,
+                    valueBuilder: (value) => '\$${(value as double).toStringAsFixed(2)}',
                   ),
                   SizedBox(height: 16),
                 ],
@@ -249,62 +332,52 @@ class _AnalyticsCard extends StatelessWidget {
   }
 }
 
-class _StatusRow extends StatelessWidget {
-  final String status;
-  final int count;
-  final Color color;
+class _StatsMapCard extends StatelessWidget {
+  final List<MapEntry<String, dynamic>> entries;
+  final String emptyLabel;
+  final String Function(dynamic)? valueBuilder;
 
-  const _StatusRow({
-    required this.status,
-    required this.count,
-    required this.color,
+  const _StatsMapCard({
+    required this.entries,
+    required this.emptyLabel,
+    this.valueBuilder,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
-          children: [
-            Container(
-              width: 12,
-              height: 12,
-              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            ),
-            SizedBox(width: 12),
-            Text(status),
-          ],
-        ),
-        Text(
-          count.toString(),
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-      ],
-    );
-  }
-}
+    return CustomCard(
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: entries.isEmpty
+            ? Text(
+                emptyLabel,
+                style: TextStyle(color: Colors.grey[600]),
+              )
+            : Column(
+                children: List.generate(entries.length, (index) {
+                  final entry = entries[index];
+                  final valueText = valueBuilder != null
+                      ? valueBuilder!(entry.value)
+                      : entry.value.toString();
 
-class _StatRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _StatRow({
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label),
-        Text(
-          value,
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-      ],
+                  return Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(child: Text(entry.key)),
+                          Text(
+                            valueText,
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      if (index < entries.length - 1) Divider(),
+                    ],
+                  );
+                }),
+              ),
+      ),
     );
   }
 }

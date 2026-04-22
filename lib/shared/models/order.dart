@@ -40,27 +40,43 @@ class Order {
 
   /// Create Order from JSON
   factory Order.fromJson(Map<String, dynamic> json) {
+    double toDouble(dynamic value) {
+      if (value is num) return value.toDouble();
+      if (value is String) return double.tryParse(value) ?? 0;
+      return 0;
+    }
+
+    final user = (json['user'] as Map<String, dynamic>?) ?? const {};
+    final lines = (json['orderLines'] as List?) ?? (json['items'] as List?) ?? const [];
+    final createdAtRaw = json['createdAt'] ?? json['created_at'];
+    final deliveredAtRaw = json['deliveredAt'] ?? json['delivered_at'];
+    final rawStatus = (json['status'] ?? 'pending').toString();
+
     return Order(
-      id: json['id'] as String,
-      clientId: json['client_id'] as String,
-      clientName: json['client_name'] as String,
-      clientPhone: json['client_phone'] as String,
-      deliveryAddress: json['delivery_address'] as String,
-      deliveryCity: json['delivery_city'] as String,
-      deliveryCountry: json['delivery_country'] as String?,
-      items: (json['items'] as List)
+      id: (json['id'] ?? json['orderId'] ?? '').toString(),
+      clientId: (json['client_id'] ?? user['userId'] ?? '').toString(),
+      clientName: (json['client_name'] ?? user['fullName'] ?? 'Unknown Customer').toString(),
+      clientPhone: (json['client_phone'] ?? user['phone'] ?? '').toString(),
+      deliveryAddress: (json['delivery_address'] ?? 'N/A').toString(),
+      deliveryCity: (json['delivery_city'] ?? 'N/A').toString(),
+      deliveryCountry: (json['delivery_country'] ?? '').toString().isEmpty
+          ? null
+          : (json['delivery_country'] ?? '').toString(),
+      items: lines
           .map((item) => OrderItem.fromJson(item as Map<String, dynamic>))
           .toList(),
-      totalAmount: (json['total_amount'] as num).toDouble(),
-      taxAmount: (json['tax_amount'] as num).toDouble(),
-      shippingAmount: (json['shipping_amount'] as num).toDouble(),
-      status: json['status'] as String,
-      paymentStatus: json['payment_status'] as String,
-      paymentMethod: json['payment_method'] as String,
+      totalAmount: toDouble(json['total_amount'] ?? json['totalPrice']),
+      taxAmount: toDouble(json['tax_amount'] ?? 0),
+      shippingAmount: toDouble(json['shipping_amount'] ?? 0),
+      status: rawStatus.toLowerCase(),
+      paymentStatus: (json['payment_status'] ?? 'paid').toString().toLowerCase(),
+      paymentMethod: (json['payment_method'] ?? json['paymentMethod'] ?? 'unknown').toString().toLowerCase(),
       notes: json['notes'] as String?,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      deliveredAt: json['delivered_at'] != null
-          ? DateTime.parse(json['delivered_at'] as String)
+      createdAt: createdAtRaw is String
+          ? (DateTime.tryParse(createdAtRaw) ?? DateTime.now())
+          : DateTime.now(),
+      deliveredAt: deliveredAtRaw != null
+          ? DateTime.tryParse(deliveredAtRaw.toString())
           : null,
     );
   }
@@ -128,11 +144,26 @@ class OrderItem {
 
   /// Create OrderItem from JSON
   factory OrderItem.fromJson(Map<String, dynamic> json) {
+    double toDouble(dynamic value) {
+      if (value is num) return value.toDouble();
+      if (value is String) return double.tryParse(value) ?? 0;
+      return 0;
+    }
+
+    int toInt(dynamic value) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      if (value is String) return int.tryParse(value) ?? 0;
+      return 0;
+    }
+
+    final product = (json['product'] as Map<String, dynamic>?) ?? const {};
+
     return OrderItem(
-      productId: json['product_id'] as String,
-      productName: json['product_name'] as String,
-      unitPrice: (json['unit_price'] as num).toDouble(),
-      quantity: json['quantity'] as int,
+      productId: (json['product_id'] ?? product['productId'] ?? '').toString(),
+      productName: (json['product_name'] ?? product['name'] ?? 'Unknown Product').toString(),
+      unitPrice: toDouble(json['unit_price'] ?? json['unitPrice']),
+      quantity: toInt(json['quantity']),
     );
   }
 

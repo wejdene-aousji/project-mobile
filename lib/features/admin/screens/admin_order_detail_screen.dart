@@ -192,12 +192,50 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
                   label: 'Save Status',
                   onPressed: () async {
                     if (_selectedStatus != null && _selectedStatus != order.status) {
-                      final success = await adminProvider.updateOrderStatus(widget.orderId, _selectedStatus!);
+                      final success = _selectedStatus == 'cancelled'
+                          ? await adminProvider.cancelOrder(widget.orderId)
+                          : await adminProvider.updateOrderStatus(widget.orderId, _selectedStatus!);
                       if (success) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text('Order status updated')),
                         );
                       }
+                    }
+                  },
+                ),
+                SizedBox(height: 12),
+                CustomButton(
+                  label: 'Delete Order',
+                  backgroundColor: Colors.red,
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: Text('Delete Order?'),
+                        content: Text('This action cannot be undone.'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: Text('Cancel'),
+                          ),
+                          ElevatedButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: Text('Delete', style: TextStyle(color: Colors.red)),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (confirm != true) return;
+
+                    final success = await adminProvider.deleteOrder(widget.orderId);
+                    if (!context.mounted) return;
+                    if (success) {
+                      Navigator.pop(context);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(adminProvider.error ?? 'Failed to delete order')),
+                      );
                     }
                   },
                 ),

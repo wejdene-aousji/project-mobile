@@ -210,6 +210,11 @@ class AdminProvider extends ChangeNotifier {
   
   // Statistics
   Map<String, dynamic> _stats = {};
+  Map<String, int> _topProductsStats = {};
+  Map<String, int> _lowProductsStats = {};
+  Map<String, int> _dailySalesStats = {};
+  Map<String, double> _dailyRevenueStats = {};
+  double _periodRevenue = 0;
 
   AdminProvider() {
     _apiService = ServiceLocator.apiService;
@@ -225,6 +230,11 @@ class AdminProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   Map<String, dynamic> get stats => _stats;
+  Map<String, int> get topProductsStats => _topProductsStats;
+  Map<String, int> get lowProductsStats => _lowProductsStats;
+  Map<String, int> get dailySalesStats => _dailySalesStats;
+  Map<String, double> get dailyRevenueStats => _dailyRevenueStats;
+  double get periodRevenue => _periodRevenue;
 
   // ============ Orders Management ============
   Future<void> fetchAllOrders() async {
@@ -233,7 +243,7 @@ class AdminProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      if (AppConfig.useMockApi) {
+      if (AppConfig.useMockApi && !AppConfig.useRealSalesApi) {
         _orders = await _mockApiService.fetchAllOrders();
         _error = null;
         _isLoading = false;
@@ -242,14 +252,14 @@ class AdminProvider extends ChangeNotifier {
       }
 
       final response = await _apiService.get(
-        '/admin/orders',
+        '/admin/sales',
         fromJson: (json) => json,
       );
 
       if (response.success && response.data != null) {
         final List<dynamic> ordersJson = response.data is List
             ? response.data
-            : response.data['orders'] ?? response.data['data'] ?? [];
+            : response.data['sales'] ?? response.data['orders'] ?? response.data['data'] ?? [];
 
         _orders = ordersJson
             .map((json) => Order.fromJson(json as Map<String, dynamic>))
@@ -266,9 +276,117 @@ class AdminProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<bool> createSale({
+    required String userId,
+    required List<OrderItem> lines,
+  }) async {
+    return _createSaleAtEndpoint(
+      endpoint: '/admin/sales',
+      userId: userId,
+      lines: lines,
+    );
+  }
+
+  Future<bool> createInStoreSale({
+    required String userId,
+    required List<OrderItem> lines,
+  }) async {
+    return _createSaleAtEndpoint(
+      endpoint: '/admin/sales/store',
+      userId: userId,
+      lines: lines,
+    );
+  }
+
+  Future<bool> createOnlineSale({
+    required String userId,
+    required List<OrderItem> lines,
+  }) async {
+    return _createSaleAtEndpoint(
+      endpoint: '/admin/sales/online',
+      userId: userId,
+      lines: lines,
+    );
+  }
+
+  Future<bool> _createSaleAtEndpoint({
+    required String endpoint,
+    required String userId,
+    required List<OrderItem> lines,
+  }) async {
+    try {
+      if (AppConfig.useMockApi && !AppConfig.useRealSalesApi) {
+        final total = lines.fold<double>(0, (sum, line) => sum + line.itemTotal);
+        final now = DateTime.now();
+        _orders.insert(
+          0,
+          Order(
+            id: now.millisecondsSinceEpoch.toString(),
+            clientId: userId,
+            clientName: 'Client $userId',
+            clientPhone: '',
+            deliveryAddress: 'N/A',
+            deliveryCity: 'N/A',
+            deliveryCountry: null,
+            items: lines,
+            totalAmount: total,
+            taxAmount: 0,
+            shippingAmount: 0,
+            status: 'confirmed',
+            paymentStatus: 'paid',
+            paymentMethod: endpoint.endsWith('/online') ? 'online' : 'cash',
+            notes: null,
+            createdAt: now,
+            deliveredAt: null,
+          ),
+        );
+        _error = null;
+        return true;
+      }
+
+      final response = await _apiService.post(
+        endpoint,
+        body: {
+          'user': {
+            'userId': int.tryParse(userId) ?? userId,
+          },
+          'orderLines': lines
+              .map(
+                (line) => {
+                  'quantity': line.quantity,
+                  'unitPrice': line.unitPrice,
+                  'product': {
+                    'productId': int.tryParse(line.productId) ?? line.productId,
+                  },
+                },
+              )
+              .toList(),
+        },
+        fromJson: (json) => json,
+      );
+
+      if (response.success && response.data != null) {
+        final raw = response.data is Map<String, dynamic>
+            ? response.data
+            : response.data['sale'] ?? response.data['order'] ?? response.data['data'];
+        _orders.insert(0, Order.fromJson(raw as Map<String, dynamic>));
+        _error = null;
+        return true;
+      }
+
+      _error = response.error ?? 'Failed to create sale';
+      return false;
+    } catch (e) {
+      _error = 'Error creating sale: $e';
+      return false;
+    } finally {
+      notifyListeners();
+    }
+  }
+
   Future<bool> updateOrderStatus(String orderId, String newStatus) async {
     try {
-      if (AppConfig.useMockApi) {
+      if (AppConfig.useMockApi && !AppConfig.useRealSalesApi) {
         final success = await _mockApiService.updateOrderStatus(orderId, newStatus);
         if (!success) {
           _error = 'Failed to update order status';
@@ -301,9 +419,49 @@ class AdminProvider extends ChangeNotifier {
         return true;
       }
 
+      final current = _orders.firstWhere(
+        (o) => o.id == orderId,
+        orElse: () => Order(
+          id: orderId,
+          clientId: '',
+          clientName: '',
+          clientPhone: '',
+          deliveryAddress: 'N/A',
+          deliveryCity: 'N/A',
+          deliveryCountry: null,
+          items: const [],
+          totalAmount: 0,
+          taxAmount: 0,
+          shippingAmount: 0,
+          status: 'pending',
+          paymentStatus: 'paid',
+          paymentMethod: 'cash',
+          notes: null,
+          createdAt: DateTime.now(),
+          deliveredAt: null,
+        ),
+      );
+
       final response = await _apiService.put(
-        '/admin/orders/$orderId/status',
-        body: {'status': newStatus},
+        '/admin/sales/$orderId',
+        body: {
+          'status': newStatus.toUpperCase(),
+          'paymentMethod': current.paymentMethod.toUpperCase(),
+          'user': {
+            'userId': int.tryParse(current.clientId) ?? current.clientId,
+          },
+          'orderLines': current.items
+              .map(
+                (line) => {
+                  'quantity': line.quantity,
+                  'unitPrice': line.unitPrice,
+                  'product': {
+                    'productId': int.tryParse(line.productId) ?? line.productId,
+                  },
+                },
+              )
+              .toList(),
+        },
         fromJson: (json) => json,
       );
 
@@ -321,6 +479,72 @@ class AdminProvider extends ChangeNotifier {
       }
     } catch (e) {
       _error = 'Error updating order: $e';
+      return false;
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  Future<bool> cancelOrder(String orderId) async {
+    try {
+      if (AppConfig.useMockApi && !AppConfig.useRealSalesApi) {
+        return updateOrderStatus(orderId, 'cancelled');
+      }
+
+      final response = await _apiService.put(
+        '/admin/sales/$orderId/cancel',
+        body: const {},
+        fromJson: (json) => json,
+      );
+
+      if (response.success && response.data != null) {
+        final raw = response.data is Map<String, dynamic>
+            ? response.data
+            : response.data['sale'] ?? response.data['order'] ?? response.data['data'];
+        final updated = Order.fromJson(raw as Map<String, dynamic>);
+        final index = _orders.indexWhere((o) => o.id == orderId);
+        if (index != -1) {
+          _orders[index] = updated;
+        } else {
+          _orders.insert(0, updated);
+        }
+        _error = null;
+        return true;
+      }
+
+      _error = response.error ?? 'Failed to cancel order';
+      return false;
+    } catch (e) {
+      _error = 'Error cancelling order: $e';
+      return false;
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  Future<bool> deleteOrder(String orderId) async {
+    try {
+      if (AppConfig.useMockApi && !AppConfig.useRealSalesApi) {
+        _orders.removeWhere((o) => o.id == orderId);
+        _error = null;
+        return true;
+      }
+
+      final response = await _apiService.delete(
+        '/admin/sales/$orderId',
+        fromJson: (json) => json,
+      );
+
+      if (response.success) {
+        _orders.removeWhere((o) => o.id == orderId);
+        _error = null;
+        return true;
+      }
+
+      _error = response.error ?? 'Failed to delete order';
+      return false;
+    } catch (e) {
+      _error = 'Error deleting order: $e';
       return false;
     } finally {
       notifyListeners();
@@ -1033,12 +1257,11 @@ class AdminProvider extends ChangeNotifier {
 
       final response = await _apiService.post(
         '/admin/purchases',
-        body: {
-          'totalCost': totalCost,
-          'purchaseDate': purchaseDate.toIso8601String().split('T').first,
-          'lines': lines.map((line) => line.toJson()).toList(),
-          'supplier': supplier.toJson(),
-        },
+        body: _buildPurchaseRequestBody(
+          purchaseDate: purchaseDate,
+          supplier: supplier,
+          lines: lines,
+        ),
         fromJson: (json) => json,
       );
 
@@ -1059,6 +1282,148 @@ class AdminProvider extends ChangeNotifier {
     } finally {
       notifyListeners();
     }
+  }
+
+  Future<bool> updatePurchase({
+    required String purchaseId,
+    required DateTime purchaseDate,
+    required AdminSupplier supplier,
+    required List<AdminPurchaseLine> lines,
+  }) async {
+    try {
+      final totalCost = lines.fold<double>(0, (sum, line) => sum + line.subtotal);
+
+      if (AppConfig.useMockApi && !AppConfig.useRealPurchasesApi) {
+        final index = _purchases.indexWhere((p) => p.id == purchaseId);
+        if (index == -1) {
+          _error = 'Purchase not found';
+          return false;
+        }
+        _purchases[index] = AdminPurchase(
+          id: purchaseId,
+          totalCost: totalCost,
+          purchaseDate: purchaseDate,
+          lines: lines,
+          supplier: supplier,
+        );
+        _error = null;
+        return true;
+      }
+
+      final response = await _apiService.put(
+        '/admin/purchases/$purchaseId',
+        body: _buildPurchaseRequestBody(
+          purchaseDate: purchaseDate,
+          supplier: supplier,
+          lines: lines,
+        ),
+        fromJson: (json) => json,
+      );
+
+      if (response.success && response.data != null) {
+        final raw = response.data is Map<String, dynamic>
+            ? response.data
+            : response.data['purchase'] ?? response.data['data'];
+        final updated = AdminPurchase.fromJson(raw as Map<String, dynamic>);
+        final index = _purchases.indexWhere((p) => p.id == purchaseId);
+        if (index != -1) {
+          _purchases[index] = updated;
+        } else {
+          _purchases.insert(0, updated);
+        }
+        _error = null;
+        return true;
+      }
+
+      _error = response.error ?? 'Failed to update purchase';
+      return false;
+    } catch (e) {
+      _error = 'Error updating purchase: $e';
+      return false;
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  Future<bool> deletePurchase(String purchaseId) async {
+    try {
+      if (AppConfig.useMockApi && !AppConfig.useRealPurchasesApi) {
+        _purchases.removeWhere((p) => p.id == purchaseId);
+        _error = null;
+        return true;
+      }
+
+      final response = await _apiService.delete(
+        '/admin/purchases/$purchaseId',
+        fromJson: (json) => json,
+      );
+
+      if (response.success) {
+        _purchases.removeWhere((p) => p.id == purchaseId);
+        _error = null;
+        return true;
+      }
+
+      _error = response.error ?? 'Failed to delete purchase';
+      return false;
+    } catch (e) {
+      _error = 'Error deleting purchase: $e';
+      return false;
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  Future<bool> updatePurchaseStock(String purchaseId) async {
+    try {
+      if (AppConfig.useMockApi && !AppConfig.useRealPurchasesApi) {
+        _error = null;
+        return true;
+      }
+
+      final response = await _apiService.put(
+        '/admin/purchases/$purchaseId/stock',
+        body: const {},
+        fromJson: (json) => json,
+      );
+
+      if (response.success) {
+        _error = null;
+        return true;
+      }
+
+      _error = response.error ?? 'Failed to update purchase stock';
+      return false;
+    } catch (e) {
+      _error = 'Error updating purchase stock: $e';
+      return false;
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  Map<String, dynamic> _buildPurchaseRequestBody({
+    required DateTime purchaseDate,
+    required AdminSupplier supplier,
+    required List<AdminPurchaseLine> lines,
+  }) {
+    return {
+      'purchaseDate': purchaseDate.toIso8601String().split('T').first,
+      'supplier': {
+        'supplierId': int.tryParse(supplier.id) ?? supplier.id,
+      },
+      'lines': lines
+          .map(
+            (line) => {
+              'quantity': line.quantity,
+              'unitCost': line.unitCost,
+              'product': {
+                'productId': int.tryParse(line.product.id) ?? line.product.id,
+              },
+            },
+          )
+          .toList(),
+    };
   }
 
   Future<AdminUser?> fetchUserById(String userId) async {
@@ -1180,6 +1545,171 @@ class AdminProvider extends ChangeNotifier {
       _stats = _calculateLocalStats();
     }
     notifyListeners();
+  }
+
+  Future<void> fetchTopProductsStats() async {
+    try {
+      if (AppConfig.useMockApi && !AppConfig.useRealStatsApi) {
+        _topProductsStats = {};
+        notifyListeners();
+        return;
+      }
+
+      final response = await _apiService.get(
+        '/admin/stats/top-products',
+        fromJson: (json) => json,
+      );
+
+      if (response.success && response.data != null) {
+        _topProductsStats = _extractIntStatsMap(response.data);
+      }
+    } catch (_) {
+      // Keep previous values if fetch fails.
+    }
+    notifyListeners();
+  }
+
+  Future<void> fetchLowProductsStats() async {
+    try {
+      if (AppConfig.useMockApi && !AppConfig.useRealStatsApi) {
+        _lowProductsStats = {};
+        notifyListeners();
+        return;
+      }
+
+      final response = await _apiService.get(
+        '/admin/stats/low-products',
+        fromJson: (json) => json,
+      );
+
+      if (response.success && response.data != null) {
+        _lowProductsStats = _extractIntStatsMap(response.data);
+      }
+    } catch (_) {
+      // Keep previous values if fetch fails.
+    }
+    notifyListeners();
+  }
+
+  Future<void> fetchDailySalesStats() async {
+    try {
+      if (AppConfig.useMockApi && !AppConfig.useRealStatsApi) {
+        _dailySalesStats = {};
+        notifyListeners();
+        return;
+      }
+
+      final response = await _apiService.get(
+        '/admin/stats/daily-sales',
+        fromJson: (json) => json,
+      );
+
+      if (response.success && response.data != null) {
+        _dailySalesStats = _extractIntStatsMap(response.data);
+      }
+    } catch (_) {
+      // Keep previous values if fetch fails.
+    }
+    notifyListeners();
+  }
+
+  Future<void> fetchDailyRevenueStats() async {
+    try {
+      if (AppConfig.useMockApi && !AppConfig.useRealStatsApi) {
+        _dailyRevenueStats = {};
+        notifyListeners();
+        return;
+      }
+
+      final response = await _apiService.get(
+        '/admin/stats/daily-revenue',
+        fromJson: (json) => json,
+      );
+
+      if (response.success && response.data != null) {
+        _dailyRevenueStats = _extractDoubleStatsMap(response.data);
+      }
+    } catch (_) {
+      // Keep previous values if fetch fails.
+    }
+    notifyListeners();
+  }
+
+  Future<void> fetchPeriodRevenue({
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    try {
+      if (AppConfig.useMockApi && !AppConfig.useRealStatsApi) {
+        _periodRevenue = 0;
+        notifyListeners();
+        return;
+      }
+
+      final startDate = start.toIso8601String().split('T').first;
+      final endDate = end.toIso8601String().split('T').first;
+
+      final response = await _apiService.get(
+        '/admin/stats/period-revenue?start=$startDate&end=$endDate',
+        fromJson: (json) => json,
+      );
+
+      if (response.success && response.data != null) {
+        _periodRevenue = _toDouble(response.data);
+      }
+    } catch (_) {
+      // Keep previous values if fetch fails.
+    }
+    notifyListeners();
+  }
+
+  int _toInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  double _toDouble(dynamic value) {
+    if (value is double) return value;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  Map<String, int> _extractIntStatsMap(dynamic source) {
+    final rawMap = _extractMapPayload(source);
+    return rawMap.map((key, value) => MapEntry(key.toString(), _toInt(value)));
+  }
+
+  Map<String, double> _extractDoubleStatsMap(dynamic source) {
+    final rawMap = _extractMapPayload(source);
+    return rawMap.map((key, value) => MapEntry(key.toString(), _toDouble(value)));
+  }
+
+  Map<dynamic, dynamic> _extractMapPayload(dynamic source) {
+    if (source is Map) {
+      if (source['data'] is Map) return source['data'] as Map;
+      if (source['stats'] is Map) return source['stats'] as Map;
+      if (source['result'] is Map) return source['result'] as Map;
+      return source;
+    }
+
+    if (source is List) {
+      final map = <dynamic, dynamic>{};
+      for (final row in source) {
+        if (row is Map) {
+          final key = row['key'] ?? row['name'] ?? row['date'] ?? row['label'];
+          final value = row['value'] ?? row['count'] ?? row['amount'] ?? row['total'];
+          if (key != null && value != null) {
+            map[key] = value;
+          }
+        }
+      }
+      return map;
+    }
+
+    return const {};
   }
 
   Map<String, dynamic> _calculateLocalStats() {

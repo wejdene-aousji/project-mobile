@@ -10,6 +10,8 @@ class AppConfig {
   static const bool useRealUsersApi = true;
   static const bool useRealSuppliersApi = true;
   static const bool useRealPurchasesApi = true;
+  static const bool useRealSalesApi = true;
+  static const bool useRealStatsApi = true;
 
   // Cloudinary (frontend-safe values only)
   // Do not put ApiSecret in Flutter client code.
