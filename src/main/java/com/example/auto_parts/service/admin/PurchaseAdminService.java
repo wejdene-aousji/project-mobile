@@ -1,13 +1,17 @@
 package com.example.auto_parts.service.admin;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+
 import com.example.auto_parts.entity.Product;
 import com.example.auto_parts.entity.Purchase;
 import com.example.auto_parts.entity.PurchaseLine;
 import com.example.auto_parts.repository.ProductRepository;
 import com.example.auto_parts.repository.PurchaseRepository;
-import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 @Service
 public class PurchaseAdminService {
@@ -54,7 +58,7 @@ public class PurchaseAdminService {
         return purchaseRepository.findAll();
     }
 
-    // Update stock after purchase deletion
+    // Update stock
     public void updatePurchaseStock(Long purchaseId) {
 
         Purchase purchase = purchaseRepository.findById(purchaseId)
@@ -71,4 +75,84 @@ public class PurchaseAdminService {
             productRepository.save(product);
         }
     }
+
+    // Update purchase + stock update
+    public Purchase updatePurchase(Long id, Purchase updatedPurchase) {
+
+        Purchase existingPurchase = purchaseRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Purchase not found"));
+
+        Map<Long, PurchaseLine> oldMap = existingPurchase.getLines()
+                .stream()
+                .collect(Collectors.toMap(
+                        l -> l.getProduct().getProductId(),
+                        l -> l
+                ));
+
+        double total = 0;
+
+        List<PurchaseLine> newLines = new ArrayList<>();
+
+        for (PurchaseLine newLine : updatedPurchase.getLines()) {
+
+            Long productId = newLine.getProduct().getProductId();
+
+            Product product = productRepository.findById(productId)
+                    .orElseThrow(() -> new RuntimeException("Product not found"));
+
+            PurchaseLine oldLine = oldMap.get(productId);
+
+            int oldQty = (oldLine != null) ? oldLine.getQuantity() : 0;
+            int newQty = newLine.getQuantity();
+
+            int delta = newQty - oldQty;
+
+            // PURCHASE = STOCK UP
+            product.setStockQuantity(product.getStockQuantity() + delta);
+            productRepository.save(product);
+
+            PurchaseLine lineToSave = (oldLine != null) ? oldLine : new PurchaseLine();
+
+            lineToSave.setPurchase(existingPurchase);
+            lineToSave.setProduct(product);
+            lineToSave.setQuantity(newQty);
+
+            double unitCost = product.getPriceTTC();
+            double subtotal = unitCost * newQty;
+
+            lineToSave.setUnitCost(unitCost);
+            lineToSave.setSubtotal(subtotal);
+
+            total += subtotal;
+
+            newLines.add(lineToSave);
+        }
+
+        // handle deleted lines
+        for (PurchaseLine oldLine : existingPurchase.getLines()) {
+
+            boolean exists = updatedPurchase.getLines().stream()
+                    .anyMatch(l -> l.getProduct().getProductId()
+                            .equals(oldLine.getProduct().getProductId()));
+
+            if (!exists) {
+
+                Product product = oldLine.getProduct();
+
+                product.setStockQuantity(
+                        product.getStockQuantity() - oldLine.getQuantity()
+                );
+
+                productRepository.save(product);
+            }
+        }
+
+        existingPurchase.getLines().clear();
+        existingPurchase.getLines().addAll(newLines);
+
+        existingPurchase.setTotalCost(total);
+
+        return purchaseRepository.save(existingPurchase);
+    }
+
 }

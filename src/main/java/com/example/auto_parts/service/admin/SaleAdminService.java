@@ -1,5 +1,13 @@
 package com.example.auto_parts.service.admin;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+
 import com.example.auto_parts.entity.Order;
 import com.example.auto_parts.entity.OrderLine;
 import com.example.auto_parts.entity.OrderStatus;
@@ -8,11 +16,6 @@ import com.example.auto_parts.entity.User;
 import com.example.auto_parts.repository.OrderRepository;
 import com.example.auto_parts.repository.ProductRepository;
 import com.example.auto_parts.repository.UserRepository;
-
-import org.springframework.stereotype.Service;
-
-import java.time.LocalDateTime;
-import java.util.List;
 
 @Service
 public class SaleAdminService {
@@ -129,4 +132,90 @@ public class SaleAdminService {
 
         return orderRepository.save(order);
     }
+
+    
+    // Update sale + stock update
+    public Order updateSale(Long id, Order updatedOrder) {
+
+        Order existingOrder = orderRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        Map<Long, OrderLine> oldMap = existingOrder.getOrderLines()
+                .stream()
+                .collect(Collectors.toMap(
+                        l -> l.getProduct().getProductId(),
+                        l -> l
+                ));
+
+        double total = 0;
+
+        List<OrderLine> newLines = new ArrayList<>();
+
+        for (OrderLine newLine : updatedOrder.getOrderLines()) {
+
+            Long productId = newLine.getProduct().getProductId();
+
+            Product product = productRepository.findById(productId)
+                    .orElseThrow(() -> new RuntimeException("Product not found"));
+
+            OrderLine oldLine = oldMap.get(productId);
+
+            int oldQty = (oldLine != null) ? oldLine.getQuantity() : 0;
+            int newQty = newLine.getQuantity();
+
+            int delta = newQty - oldQty;
+
+            // STOCK ADJUSTMENT
+            if (delta > 0 && product.getStockQuantity() < delta) {
+                throw new RuntimeException("Stock insuffisant pour " + product.getName());
+            }
+
+            product.setStockQuantity(product.getStockQuantity() - delta);
+            productRepository.save(product);
+
+            // BUILD LINE
+            OrderLine lineToSave = (oldLine != null) ? oldLine : new OrderLine();
+
+            lineToSave.setOrder(existingOrder);
+            lineToSave.setProduct(product);
+            lineToSave.setQuantity(newQty);
+
+            double unitPrice = product.getPriceTTC();
+            double subtotal = unitPrice * newQty;
+
+            lineToSave.setUnitPrice(unitPrice);
+            lineToSave.setSubtotal(subtotal);
+
+            total += subtotal;
+
+            newLines.add(lineToSave);
+        }
+
+        // RESTORE deleted lines
+        for (OrderLine oldLine : existingOrder.getOrderLines()) {
+
+            boolean exists = updatedOrder.getOrderLines().stream()
+                    .anyMatch(l -> l.getProduct().getProductId()
+                            .equals(oldLine.getProduct().getProductId()));
+
+            if (!exists) {
+
+                Product product = oldLine.getProduct();
+
+                product.setStockQuantity(
+                        product.getStockQuantity() + oldLine.getQuantity()
+                );
+
+                productRepository.save(product);
+            }
+        }
+
+        existingOrder.getOrderLines().clear();
+        existingOrder.getOrderLines().addAll(newLines);
+
+        existingOrder.setTotalPrice(total);
+
+        return orderRepository.save(existingOrder);
+    }
+
 }

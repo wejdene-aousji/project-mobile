@@ -52,4 +52,13 @@ public class SaleAdminController {
     public Order cancelSale(@PathVariable Long id) {
         return saleAdminService.cancelSale(id);
     }
+
+    // Update sale
+    @PutMapping("/{id}")
+    public Order updateSale(
+            @PathVariable Long id,
+            @RequestBody Order order) {
+
+        return saleAdminService.updateSale(id, order);
+    }
 }

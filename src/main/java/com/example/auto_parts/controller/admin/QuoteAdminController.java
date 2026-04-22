@@ -17,25 +17,25 @@ public class QuoteAdminController {
         this.quoteAdminService = quoteAdminService;
     }
 
-    // GET ALL QUOTES
+    // Get all quotes
     @GetMapping
     public List<Quote> getAllQuotes() {
         return quoteAdminService.getAllQuotes();
     }
 
-    // APPROVE QUOTE
+    // Approve quote
     @PutMapping("/{id}/approve")
     public Quote approveQuote(@PathVariable Long id) {
         return quoteAdminService.approveQuote(id);
     }
 
-    // REJECT QUOTE
+    // Reject quote
     @PutMapping("/{id}/reject")
     public Quote rejectQuote(@PathVariable Long id) {
         return quoteAdminService.rejectQuote(id);
     }
 
-    // GET QUOTES BY STATUS
+    // Get quotes by status
     @GetMapping("/status/{status}")
     public List<Quote> getQuotesByStatus(@PathVariable QuoteStatus status) {
         return quoteAdminService.getQuotesByStatus(status);

@@ -46,8 +46,8 @@ public class Order {
     }
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
-@JsonManagedReference
-private List<OrderLine> orderLines;
+    @JsonManagedReference
+    private List<OrderLine> orderLines;
 
 
     public Order() {
