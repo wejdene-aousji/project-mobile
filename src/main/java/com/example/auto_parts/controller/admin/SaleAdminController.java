@@ -61,4 +61,10 @@ public class SaleAdminController {
 
         return saleAdminService.updateSale(id, order);
     }
+
+    // Delete sale
+    @DeleteMapping("/{id}")
+    public void deleteSale(@PathVariable Long id) {
+        saleAdminService.deleteSale(id);
+    }
 }

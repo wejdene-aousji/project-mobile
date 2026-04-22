@@ -42,4 +42,10 @@ public class PurchaseAdminController {
 
         return purchaseAdminService.updatePurchase(id, purchase);
     }
+
+    // Delete purchase
+    @DeleteMapping("/{id}")
+    public void deletePurchase(@PathVariable Long id) {
+        purchaseAdminService.deletePurchase(id);
+    }
 }

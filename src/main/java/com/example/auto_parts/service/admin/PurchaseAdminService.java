@@ -155,4 +155,13 @@ public class PurchaseAdminService {
         return purchaseRepository.save(existingPurchase);
     }
 
+    // Delete purchase
+    public void deletePurchase(Long id) {
+
+        Purchase purchase = purchaseRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Purchase not found"));
+
+        purchaseRepository.delete(purchase);
+    }
+
 }

@@ -218,4 +218,14 @@ public class SaleAdminService {
         return orderRepository.save(existingOrder);
     }
 
+    // Delete sale
+    public void deleteSale(Long id) {
+
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        // delete order (cascade supprime orderLines si cascade = ALL)
+        orderRepository.delete(order);
+    }
+
 }
