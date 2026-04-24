@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../shared/widgets/index.dart';
 import '../../providers/quote_provider.dart';
+import '../../providers/product_provider.dart';
 import '../../widgets/client_bottom_nav_bar.dart';
 
 class QuoteRequestScreen extends StatefulWidget {
@@ -15,29 +16,32 @@ class QuoteRequestScreen extends StatefulWidget {
 class _QuoteRequestScreenState extends State<QuoteRequestScreen> {
   final _formKey = GlobalKey<FormState>();
   late QuoteProvider _quoteProvider;
+  late ProductProvider _productProvider;
   
   List<Map<String, dynamic>> _items = [];
   bool _isSubmitting = false;
 
   final _descriptionController = TextEditingController();
-  final _addressController = TextEditingController();
   final _itemNameController = TextEditingController();
   final _itemQuantityController = TextEditingController();
-  final _itemSpecsController = TextEditingController();
+  
 
   @override
   void initState() {
     super.initState();
     _quoteProvider = context.read<QuoteProvider>();
+    _productProvider = context.read<ProductProvider>();
+    // Fetch products if not already loaded
+    if (_productProvider.products.isEmpty) {
+      _productProvider.fetchProducts();
+    }
   }
 
   @override
   void dispose() {
     _descriptionController.dispose();
-    _addressController.dispose();
     _itemNameController.dispose();
     _itemQuantityController.dispose();
-    _itemSpecsController.dispose();
     super.dispose();
   }
 
@@ -117,21 +121,6 @@ class _QuoteRequestScreenState extends State<QuoteRequestScreen> {
 
                   SizedBox(height: 20),
 
-                  // Delivery address
-                  Text('Delivery Address', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  SizedBox(height: 8),
-                  CustomTextField(
-                    label: 'Address',
-                    hint: 'Enter your delivery address...',
-                    controller: _addressController,
-                    maxLines: 3,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your delivery address';
-                      }
-                      return null;
-                    },
-                  ),
                   SizedBox(height: 20),
 
                   // Submit button
@@ -206,14 +195,7 @@ class _QuoteRequestScreenState extends State<QuoteRequestScreen> {
               ),
             ],
           ),
-          if (item['specs'] != null && (item['specs'] as String).isNotEmpty)
-            Padding(
-              padding: EdgeInsets.only(top: 8),
-              child: Text(
-                'Specs: ${item['specs']}',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-            ),
+          
         ],
       ),
     );
@@ -222,67 +204,103 @@ class _QuoteRequestScreenState extends State<QuoteRequestScreen> {
   void _showAddItemDialog() {
     _itemNameController.clear();
     _itemQuantityController.clear();
-    _itemSpecsController.clear();
-
-    showDialog(
+    // Show a dialog with a product picker populated from ProductProvider
+    // Show dialog and await the added item; update parent state after dialog closes
+    showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Add Item to Quote'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CustomTextField(
-                label: 'Item name',
-                controller: _itemNameController,
-                validator: (value) => value == null || value.isEmpty ? 'Required' : null,
-              ),
-              SizedBox(height: 12),
-              CustomTextField(
-                label: 'Quantity',
-                controller: _itemQuantityController,
-                keyboardType: TextInputType.number,
-                validator: (value) => value == null || value.isEmpty ? 'Required' : null,
-              ),
-              SizedBox(height: 12),
-              CustomTextField(
-                label: 'Specifications',
-                hint: '(optional)',
-                controller: _itemSpecsController,
-                maxLines: 2,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          OutlinedButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          CustomButton(
-            label: 'Add',
-            onPressed: () {
-              if (_itemNameController.text.isEmpty || _itemQuantityController.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Please fill in all required fields')),
-                );
-                return;
-              }
+      builder: (context) {
+        String? selectedProductId;
+        int qty = 1;
 
-              setState(() {
-                _items.add({
-                  'name': _itemNameController.text,
-                  'quantity': int.tryParse(_itemQuantityController.text) ?? 1,
-                  'specs': _itemSpecsController.text,
-                });
-              });
+        return StatefulBuilder(
+          builder: (context, setState) {
+            final products = _productProvider.products;
+            if (products.isEmpty) {
+              return AlertDialog(
+                title: const Text('Add Item to Quote'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('No products available. Please try again.'),
+                    const SizedBox(height: 12),
+                    ElevatedButton(
+                      onPressed: () => _productProvider.fetchProducts(),
+                      child: const Text('Reload Products'),
+                    ),
+                  ],
+                ),
+                actions: [
+                  OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Close'),
+                  ),
+                ],
+              );
+            }
 
-              Navigator.pop(context);
-            },
-          ),
-        ],
-      ),
-    );
+            return AlertDialog(
+              title: const Text('Add Item to Quote'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      value: selectedProductId,
+                      items: products.map((p) {
+                        return DropdownMenuItem<String>(
+                          value: p.id,
+                          child: Text('${p.name} (${p.code ?? ''})'),
+                        );
+                      }).toList(),
+                      onChanged: (v) => setState(() => selectedProductId = v),
+                      decoration: const InputDecoration(labelText: 'Select product'),
+                    ),
+                    const SizedBox(height: 12),
+                    CustomTextField(
+                      label: 'Quantity',
+                      controller: _itemQuantityController,
+                      keyboardType: TextInputType.number,
+                      validator: (value) => value == null || value.isEmpty ? 'Required' : null,
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                ),
+              ),
+              actions: [
+                OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                CustomButton(
+                  label: 'Add',
+                  onPressed: () {
+                    if (selectedProductId == null || selectedProductId!.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please select a product')),
+                      );
+                      return;
+                    }
+
+                    final selected = products.firstWhere((p) => p.id == selectedProductId);
+                    final item = {
+                      'productId': selected.id,
+                      'name': selected.name,
+                      'quantity': int.tryParse(_itemQuantityController.text) ?? 1,
+                    };
+
+                    Navigator.pop(context, item);
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    ).then((added) {
+      if (added != null) {
+        setState(() => _items.add(added));
+      }
+    });
   }
 
   Future<void> _submitQuote() async {
@@ -293,14 +311,21 @@ class _QuoteRequestScreenState extends State<QuoteRequestScreen> {
       );
       return;
     }
+    // Ensure every item has a productId (selected from inventory)
+    final missingId = _items.indexWhere((it) => it['productId'] == null || (it['productId'] as String).isEmpty);
+    if (missingId != -1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please select a product for item ${missingId + 1}')),
+      );
+      return;
+    }
 
     setState(() => _isSubmitting = true);
 
-    final success = await _quoteProvider.submitQuoteRequest(
-      description: _descriptionController.text,
-      items: _items,
-      deliveryAddress: _addressController.text,
-    );
+      final success = await _quoteProvider.submitQuoteRequest(
+        description: _descriptionController.text,
+        items: _items,
+      );
 
     setState(() => _isSubmitting = false);
 

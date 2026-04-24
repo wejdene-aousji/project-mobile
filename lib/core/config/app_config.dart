@@ -5,13 +5,14 @@ class AppConfig {
   static const String appVersion = '1.0.0';
 
   // Mock API - Set to true to use mock API service instead of real backend
-  static const bool useMockApi = true;
+  static const bool useMockApi = false;
   static const bool useRealProductsApi = true;
   static const bool useRealUsersApi = true;
   static const bool useRealSuppliersApi = true;
   static const bool useRealPurchasesApi = true;
   static const bool useRealSalesApi = true;
   static const bool useRealStatsApi = true;
+  static const bool useRealQuotesApi = true;
 
   // Cloudinary (frontend-safe values only)
   // Do not put ApiSecret in Flutter client code.

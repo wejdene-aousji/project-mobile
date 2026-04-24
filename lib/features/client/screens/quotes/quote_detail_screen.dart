@@ -197,24 +197,7 @@ class _QuoteDetailScreenState extends State<QuoteDetailScreen> {
                 ),
                 SizedBox(height: 16),
 
-                // Delivery Address
-                Text('Delivery Address', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                SizedBox(height: 8),
-                CustomCard(
-                  child: Row(
-                    children: [
-                      Icon(Icons.location_on_outlined, color: Colors.blue),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          quote.deliveryAddress,
-                          style: TextStyle(fontSize: 13),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(height: 24),
+                SizedBox(height: 16),
 
                 // Action buttons
                 if (quote.status == 'Pending')

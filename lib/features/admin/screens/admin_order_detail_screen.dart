@@ -33,7 +33,10 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
             orElse: () => throw Exception('Order not found'),
           );
 
-          _selectedStatus ??= order.status;
+          // Normalize status spelling to match dropdown items
+          var normalized = (order.status ?? '').toString().toLowerCase();
+          if (normalized == 'canceled') normalized = 'cancelled';
+          _selectedStatus ??= normalized;
 
           return SingleChildScrollView(
             padding: EdgeInsets.all(16),
@@ -81,7 +84,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
                         SizedBox(height: 8),
                         Text('Phone: ${order.clientPhone}'),
                         SizedBox(height: 8),
-                        Text('Address: ${order.deliveryAddress}'),
+                        // Address removed per request
                       ],
                     ),
                   ),

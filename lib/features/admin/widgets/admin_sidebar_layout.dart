@@ -116,16 +116,7 @@ class _AdminSidebarContent extends StatelessWidget {
           label: 'Users',
           onTap: () => onNavigate(AppRoutes.adminUsers),
         ),
-        _SidebarTile(
-          icon: Icons.bar_chart,
-          label: 'Analytics',
-          onTap: () => onNavigate(AppRoutes.adminAnalytics),
-        ),
-        _SidebarTile(
-          icon: Icons.settings,
-          label: 'Settings',
-          onTap: () => onNavigate(AppRoutes.adminSettings),
-        ),
+        // Analytics and Settings removed
         const Divider(height: 24),
         _SidebarTile(
           icon: Icons.logout,

@@ -49,63 +49,65 @@ class _AdminProductsManagementScreenState extends State<AdminProductsManagementS
                       )
                     : SingleChildScrollView(
                         padding: EdgeInsets.all(12),
-                        scrollDirection: Axis.horizontal,
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            minWidth: MediaQuery.of(context).size.width - 24,
-                          ),
-                          child: CustomCard(
-                            padding: EdgeInsets.zero,
-                            child: DataTable(
-                              columnSpacing: 24,
-                              headingRowHeight: 56,
-                              dataRowMinHeight: 56,
-                              dataRowMaxHeight: 56,
-                              columns: const [
-                                DataColumn(label: Text('Name')),
-                                DataColumn(label: Text('Code')),
-                                DataColumn(label: Text('Price TTC')),
-                                DataColumn(label: Text('Stock Qty')),
-                                DataColumn(label: Text('Actions')),
-                              ],
-                              rows: adminProvider.products.map((product) {
-                                return DataRow(
-                                  cells: [
-                                    DataCell(
-                                      SizedBox(
-                                        width: 220,
-                                        child: Text(
-                                          product.name,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
+                        child: Column(
+                          children: adminProvider.products.map((product) {
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: CustomCard(
+                                child: ListTile(
+                                  leading: ClipRRect(
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: product.imageUrl != null && product.imageUrl!.isNotEmpty
+                                        ? Image.network(
+                                            product.imageUrl!,
+                                            width: 64,
+                                            height: 56,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stack) => Container(
+                                              color: Colors.grey[200],
+                                              width: 64,
+                                              height: 56,
+                                              child: Icon(Icons.broken_image, size: 28, color: Colors.grey),
+                                            ),
+                                          )
+                                        : Container(
+                                            width: 64,
+                                            height: 56,
+                                            decoration: BoxDecoration(
+                                              color: Colors.grey[100],
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: Icon(Icons.image, color: Colors.grey[400]),
+                                          ),
+                                  ),
+                                  title: Text(product.name),
+                                  subtitle: Text(product.code ?? '-'),
+                                  trailing: SizedBox(
+                                    width: 140,
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text('\$${(product.priceTTC ?? product.price).toStringAsFixed(2)}'),
+                                        SizedBox(width: 12),
+                                        Text('${product.stock}'),
+                                        IconButton(
+                                          tooltip: 'Edit',
+                                          icon: Icon(Icons.edit_outlined),
+                                          onPressed: () => _showProductDialog(context, product),
                                         ),
-                                      ),
+                                        IconButton(
+                                          tooltip: 'Delete',
+                                          icon: Icon(Icons.delete_outline, color: Colors.red),
+                                          onPressed: () => _deleteProduct(context, product.id),
+                                        ),
+                                      ],
                                     ),
-                                    DataCell(Text(product.code ?? '-')),
-                                    DataCell(Text('\$${(product.priceTTC ?? product.price).toStringAsFixed(2)}')),
-                                    DataCell(Text('${product.stock}')),
-                                    DataCell(
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          IconButton(
-                                            tooltip: 'Edit',
-                                            icon: Icon(Icons.edit_outlined),
-                                            onPressed: () => _showProductDialog(context, product),
-                                          ),
-                                          IconButton(
-                                            tooltip: 'Delete',
-                                            icon: Icon(Icons.delete_outline, color: Colors.red),
-                                            onPressed: () => _deleteProduct(context, product.id),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              }).toList(),
-                            ),
-                          ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
                         ),
                       ),
               ),
@@ -130,12 +132,8 @@ class _AdminProductsManagementScreenState extends State<AdminProductsManagementS
     final purchasePriceController = TextEditingController(
       text: (product?.purchasePrice ?? product?.price ?? '').toString(),
     );
-    final priceHTController = TextEditingController(
-      text: (product?.priceHT ?? product?.price ?? '').toString(),
-    );
-    final priceTTCController = TextEditingController(
-      text: (product?.priceTTC ?? product?.price ?? '').toString(),
-    );
+    final priceHTController = TextEditingController();
+    final priceTTCController = TextEditingController();
     final urlController = TextEditingController(text: product?.imageUrl ?? '');
     bool isUploading = false;
     String? uploadError;
@@ -215,32 +213,7 @@ class _AdminProductsManagementScreenState extends State<AdminProductsManagementS
                       return null;
                     },
                   ),
-                  SizedBox(height: 12),
-                  CustomTextField(
-                    label: 'Price HT',
-                    hint: 'Enter price HT',
-                    controller: priceHTController,
-                    keyboardType: TextInputType.number,
-                    validator: (value) {
-                      final parsed = double.tryParse((value ?? '').trim());
-                      if (parsed == null) return 'Price HT must be numeric';
-                      if (parsed < 0) return 'Price HT cannot be negative';
-                      return null;
-                    },
-                  ),
-                  SizedBox(height: 12),
-                  CustomTextField(
-                    label: 'Price TTC',
-                    hint: 'Enter price TTC',
-                    controller: priceTTCController,
-                    keyboardType: TextInputType.number,
-                    validator: (value) {
-                      final parsed = double.tryParse((value ?? '').trim());
-                      if (parsed == null) return 'Price TTC must be numeric';
-                      if (parsed < 0) return 'Price TTC cannot be negative';
-                      return null;
-                    },
-                  ),
+                  // Price HT and Price TTC are calculated in backend; inputs removed.
                   SizedBox(height: 12),
                   Row(
                     children: [
@@ -331,8 +304,6 @@ class _AdminProductsManagementScreenState extends State<AdminProductsManagementS
                               name: nameController.text,
                               stockQuantity: int.tryParse(stockQuantityController.text) ?? 0,
                               purchasePrice: double.tryParse(purchasePriceController.text) ?? 0,
-                              priceHT: double.tryParse(priceHTController.text) ?? 0,
-                              priceTTC: double.tryParse(priceTTCController.text) ?? 0,
                               url: urlController.text,
                             )
                           : await adminProvider.updateProduct(
@@ -341,8 +312,7 @@ class _AdminProductsManagementScreenState extends State<AdminProductsManagementS
                               name: nameController.text,
                               stockQuantity: int.tryParse(stockQuantityController.text) ?? 0,
                               purchasePrice: double.tryParse(purchasePriceController.text) ?? 0,
-                              priceHT: double.tryParse(priceHTController.text) ?? 0,
-                              priceTTC: double.tryParse(priceTTCController.text) ?? 0,
+                              // priceHT/priceTTC omitted (calculated by backend)
                               url: urlController.text,
                             );
 

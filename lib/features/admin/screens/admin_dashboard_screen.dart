@@ -13,6 +13,8 @@ class AdminDashboardScreen extends StatefulWidget {
 }
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
+  DateTime _periodStart = DateTime.now().subtract(Duration(days: 30));
+  DateTime _periodEnd = DateTime.now();
   @override
   void initState() {
     super.initState();
@@ -28,6 +30,36 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     adminProvider.fetchAllPurchases();
     adminProvider.fetchAllUsers();
     adminProvider.fetchStatistics();
+    // Load analytics snippets directly into dashboard
+    adminProvider.fetchTopProductsStats();
+    adminProvider.fetchLowProductsStats();
+    adminProvider.fetchDailySalesStats();
+    adminProvider.fetchDailyRevenueStats();
+    adminProvider.fetchPeriodRevenue(start: _periodStart, end: _periodEnd);
+  }
+
+  Future<void> _pickStartDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _periodStart,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null) {
+      setState(() => _periodStart = picked);
+    }
+  }
+
+  Future<void> _pickEndDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _periodEnd,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null) {
+      setState(() => _periodEnd = picked);
+    }
   }
 
   @override
@@ -111,8 +143,188 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     },
                   ),
                   SizedBox(height: 24),
+                  SizedBox(height: 24),
 
-                  // Management Sections
+                  // Period & Daily statistics (moved from analytics page)
+                  Text(
+                    'Revenue (Last 30 days)',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 8),
+
+                  // Period selectors
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () async => _pickStartDate(),
+                          child: Text('Start: ${_periodStart.toIso8601String().split('T').first}'),
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () async => _pickEndDate(),
+                          child: Text('End: ${_periodEnd.toIso8601String().split('T').first}'),
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () async {
+                          await adminProvider.fetchPeriodRevenue(start: _periodStart, end: _periodEnd);
+                        },
+                        child: Text('Apply'),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  CustomCard(
+                    child: Padding(
+                      padding: EdgeInsets.all(12),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Period Revenue (30d)', style: TextStyle(fontWeight: FontWeight.bold)),
+                          Text('\$${adminProvider.periodRevenue.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 12),
+
+                  // Daily Sales & Daily Revenue
+                  Row(
+                    children: [
+                      Expanded(
+                        child: CustomCard(
+                          child: Padding(
+                            padding: EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Daily Sales', style: TextStyle(fontWeight: FontWeight.bold)),
+                                SizedBox(height: 8),
+                                if (adminProvider.dailySalesStats.isEmpty)
+                                  Text('No daily sales data')
+                                else
+                                  ...adminProvider.dailySalesStats.entries.take(10).map((e) => Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 2),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [Text(e.key), Text(e.value.toString(), style: TextStyle(fontWeight: FontWeight.bold))],
+                                        ),
+                                      )),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: CustomCard(
+                          child: Padding(
+                            padding: EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Daily Revenue', style: TextStyle(fontWeight: FontWeight.bold)),
+                                SizedBox(height: 8),
+                                if (adminProvider.dailyRevenueStats.isEmpty)
+                                  Text('No daily revenue data')
+                                else
+                                  ...adminProvider.dailyRevenueStats.entries.take(10).map((e) => Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 2),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [Text(e.key), Text('\$${e.value.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.bold))],
+                                        ),
+                                      )),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 24),
+
+                  // Analytics snippets (Top / Low products)
+                  Text(
+                    'Analytics',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: CustomCard(
+                          child: Padding(
+                            padding: EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Top Products', style: TextStyle(fontWeight: FontWeight.bold)),
+                                SizedBox(height: 8),
+                                ...adminProvider.topProductsStats.entries.map((e) {
+                                  final matches = adminProvider.products.where((p) => p.id == e.key).toList();
+                                  final numericMatch = matches.isEmpty && int.tryParse(e.key) != null
+                                      ? adminProvider.products.where((p) => int.tryParse(p.id) == int.tryParse(e.key)).toList()
+                                      : [];
+                                  final productObj = matches.isNotEmpty
+                                      ? matches.first
+                                      : (numericMatch.isNotEmpty ? numericMatch.first : null);
+                                  final label = productObj != null ? productObj.name : 'Product #${e.key}';
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 4),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [Text(label), Text(e.value.toString(), style: TextStyle(fontWeight: FontWeight.bold))],
+                                    ),
+                                  );
+                                }).take(5).toList(),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: CustomCard(
+                          child: Padding(
+                            padding: EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Low Stock', style: TextStyle(fontWeight: FontWeight.bold)),
+                                SizedBox(height: 8),
+                                ...adminProvider.lowProductsStats.entries.map((e) {
+                                  final matches = adminProvider.products.where((p) => p.id == e.key).toList();
+                                  final numericMatch = matches.isEmpty && int.tryParse(e.key) != null
+                                      ? adminProvider.products.where((p) => int.tryParse(p.id) == int.tryParse(e.key)).toList()
+                                      : [];
+                                  final productObj = matches.isNotEmpty
+                                      ? matches.first
+                                      : (numericMatch.isNotEmpty ? numericMatch.first : null);
+                                  final label = productObj != null ? productObj.name : 'Product #${e.key}';
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 4),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [Text(label), Text(e.value.toString(), style: TextStyle(fontWeight: FontWeight.bold))],
+                                    ),
+                                  );
+                                }).take(5).toList(),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  SizedBox(height: 24),
+
+                  // Management Sections (moved to bottom)
                   Text(
                     'Management',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -175,59 +387,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             subtitle: '${stats['total_users'] ?? 0} users',
                             onTap: () => Navigator.pushNamed(context, AppRoutes.adminUsers),
                           ),
-                          _ManagementTile(
-                            icon: Icons.bar_chart,
-                            title: 'Analytics',
-                            subtitle: 'View reports',
-                            onTap: () => Navigator.pushNamed(context, AppRoutes.adminAnalytics),
-                          ),
-                          _ManagementTile(
-                            icon: Icons.settings,
-                            title: 'Settings',
-                            subtitle: 'System settings',
-                            onTap: () => Navigator.pushNamed(context, AppRoutes.adminSettings),
-                          ),
+                          // Analytics and Settings removed; analytics shown on this dashboard
                         ],
                       );
                     },
                   ),
-                  SizedBox(height: 24),
-
-                  // Recent Orders Section
-                  Text(
-                    'Recent Orders',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 12),
-                  if (adminProvider.orders.isEmpty)
-                    EmptyState(
-                      icon: Icons.shopping_bag_outlined,
-                      title: 'No Orders',
-                      message: 'No orders found',
-                      action: CustomButton(
-                        label: 'Refresh',
-                        onPressed: _loadData,
-                      ),
-                    )
-                  else
-                    ...adminProvider.orders.take(5).map((order) => Padding(
-                          padding: EdgeInsets.only(bottom: 8),
-                          child: CustomCard(
-                            child: ListTile(
-                              title: Text('Order #${order.id.substring(0, order.id.length > 8 ? 8 : order.id.length).toUpperCase()}'),
-                              subtitle: Text('${order.status} • ${order.totalAmount}\$'),
-                              trailing: Icon(Icons.arrow_forward_ios, size: 16),
-                              onTap: () {
-                                Navigator.pushNamed(
-                                  context,
-                                  AppRoutes.adminOrderDetail,
-                                  arguments: order.id,
-                                );
-                              },
-                            ),
-                          ),
-                        )),
-                  SizedBox(height: 16),
                 ],
               ),
             ),

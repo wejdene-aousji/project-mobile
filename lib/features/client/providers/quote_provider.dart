@@ -25,7 +25,8 @@ class QuoteProvider extends ChangeNotifier {
     if (_filterStatus == 'All') {
       return _quotes;
     }
-    return _quotes.where((quote) => quote.status == _filterStatus).toList();
+    final fs = _filterStatus.toLowerCase();
+    return _quotes.where((quote) => (quote.status ?? '').toLowerCase() == fs).toList();
   }
 
   Quote? get selectedQuote => _selectedQuote;
@@ -35,7 +36,7 @@ class QuoteProvider extends ChangeNotifier {
   int get quoteCount => _quotes.length;
 
   // Fetch all quotes for current user
-  Future<void> fetchQuotes() async {
+  Future<void> fetchQuotes({String? status}) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -49,8 +50,14 @@ class QuoteProvider extends ChangeNotifier {
         return;
       }
 
+      String endpoint = '/api/client/quotes';
+      if (status != null && status != 'All') {
+        final mapped = status.toUpperCase();
+        endpoint = '$endpoint?status=$mapped';
+      }
+
       final response = await _apiService.get(
-        '/quotes',
+        endpoint,
         fromJson: (json) => json,
       );
 
@@ -92,7 +99,7 @@ class QuoteProvider extends ChangeNotifier {
       }
 
       final response = await _apiService.get(
-        '/quotes/$quoteId',
+        '/api/client/quotes/$quoteId',
         fromJson: (json) => json,
       );
 
@@ -116,7 +123,6 @@ class QuoteProvider extends ChangeNotifier {
   Future<bool> submitQuoteRequest({
     required String description,
     required List<Map<String, dynamic>> items,
-    required String deliveryAddress,
   }) async {
     _isLoading = true;
     _error = null;
@@ -131,14 +137,14 @@ class QuoteProvider extends ChangeNotifier {
           clientEmail: 'mock@local.dev',
           clientPhone: '+1-000-0000',
           description: description,
-          deliveryAddress: deliveryAddress,
+          deliveryAddress: '',
           items: items
               .map(
                 (item) => QuoteItem(
                   productId: 'PROD_LOCAL',
                   productName: (item['name'] ?? 'Custom Item').toString(),
                   quantity: (item['quantity'] as int?) ?? 1,
-                  specifications: (item['specs'] ?? '').toString(),
+                  specifications: '',
                 ),
               )
               .toList(),
@@ -153,13 +159,19 @@ class QuoteProvider extends ChangeNotifier {
         return true;
       }
 
+      // Build lines payload expected by server: { message, lines: [{productId, quantity}] }
+      final lines = items.map((item) {
+        return {
+          'productId': item['productId'] ?? item['id'] ?? item['product_id'] ?? item['name'],
+          'quantity': item['quantity'] ?? 1,
+        };
+      }).toList();
+
       final response = await _apiService.post(
-        '/quotes',
+        '/api/client/quotes',
         body: {
-          'description': description,
-          'items': items,
-          'deliveryAddress': deliveryAddress,
-          'requestDate': DateTime.now().toIso8601String(),
+          'message': description,
+          'lines': lines,
         },
         fromJson: (json) => json,
       );
@@ -222,7 +234,7 @@ class QuoteProvider extends ChangeNotifier {
       }
 
       final response = await _apiService.put(
-        '/quotes/$quoteId/accept',
+        '/api/client/quotes/$quoteId/accept',
         body: {'status': 'accepted'},
         fromJson: (json) => json,
       );
@@ -284,7 +296,7 @@ class QuoteProvider extends ChangeNotifier {
       }
 
       final response = await _apiService.put(
-        '/quotes/$quoteId/reject',
+        '/api/client/quotes/$quoteId/reject',
         body: {'status': 'rejected'},
         fromJson: (json) => json,
       );
@@ -311,9 +323,10 @@ class QuoteProvider extends ChangeNotifier {
     }
   }
 
-  // Filter quotes by status
-  void filterByStatus(String status) {
+  // Filter quotes by status (refetches from server when possible)
+  Future<void> filterByStatus(String status) async {
     _filterStatus = status;
+    await fetchQuotes(status: status == 'All' ? null : status);
     notifyListeners();
   }
 
@@ -326,14 +339,14 @@ class QuoteProvider extends ChangeNotifier {
     }
   }
 
-  // Get quote statistics
+  // Get quote statistics (case-insensitive)
   Map<String, int> getQuoteStats() {
     return {
       'total': _quotes.length,
-      'pending': _quotes.where((q) => q.status == 'Pending').length,
-      'accepted': _quotes.where((q) => q.status == 'Accepted').length,
-      'rejected': _quotes.where((q) => q.status == 'Rejected').length,
-      'expired': _quotes.where((q) => q.status == 'Expired').length,
+      'pending': _quotes.where((q) => (q.status ?? '').toLowerCase() == 'pending').length,
+      'accepted': _quotes.where((q) => (q.status ?? '').toLowerCase() == 'accepted').length,
+      'rejected': _quotes.where((q) => (q.status ?? '').toLowerCase() == 'rejected').length,
+      'expired': _quotes.where((q) => (q.status ?? '').toLowerCase() == 'expired').length,
     };
   }
 

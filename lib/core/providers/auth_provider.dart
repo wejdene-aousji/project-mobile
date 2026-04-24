@@ -154,6 +154,47 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Update client profile using new client endpoint
+  Future<bool> updateClientProfile({
+    required dynamic userId,
+    String? fullName,
+    String? email,
+    String? phone,
+    String? role,
+    DateTime? createdAt,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final response = await _authService.updateClientProfile(
+        userId: userId,
+        fullName: fullName,
+        email: email,
+        phone: phone,
+        role: role,
+        createdAt: createdAt,
+      );
+
+      if (response.success) {
+        notifyListeners();
+        return true;
+      } else {
+        _error = response.message ?? response.error ?? 'Update failed';
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   /// Logout user
   Future<void> logout() async {
     _isLoading = true;

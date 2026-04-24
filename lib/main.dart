@@ -16,8 +16,7 @@ import 'features/admin/screens/admin_products_management_screen.dart';
 import 'features/admin/screens/admin_suppliers_management_screen.dart';
 import 'features/admin/screens/admin_purchases_management_screen.dart';
 import 'features/admin/screens/admin_users_management_screen.dart';
-import 'features/admin/screens/admin_analytics_screen.dart';
-import 'features/admin/screens/admin_settings_screen.dart';
+// Analytics and Settings pages removed; routes map to dashboard
 import 'features/admin/screens/admin_order_detail_screen.dart';
 import 'features/admin/screens/admin_quote_detail_screen.dart';
 import 'features/client/screens/auth/login_screen.dart';
@@ -202,12 +201,10 @@ class MyApp extends StatelessWidget {
           builder: (_) => const AdminUsersManagementScreen(),
         );
       case '/admin/analytics':
-        return MaterialPageRoute(
-          builder: (_) => const AdminAnalyticsScreen(),
-        );
       case '/admin/settings':
+        // Redirect removed pages to dashboard
         return MaterialPageRoute(
-          builder: (_) => const AdminSettingsScreen(),
+          builder: (_) => const AdminDashboardScreen(),
         );
 
       default:

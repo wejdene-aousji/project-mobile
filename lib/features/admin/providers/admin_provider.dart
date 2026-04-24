@@ -419,49 +419,17 @@ class AdminProvider extends ChangeNotifier {
         return true;
       }
 
-      final current = _orders.firstWhere(
-        (o) => o.id == orderId,
-        orElse: () => Order(
-          id: orderId,
-          clientId: '',
-          clientName: '',
-          clientPhone: '',
-          deliveryAddress: 'N/A',
-          deliveryCity: 'N/A',
-          deliveryCountry: null,
-          items: const [],
-          totalAmount: 0,
-          taxAmount: 0,
-          shippingAmount: 0,
-          status: 'pending',
-          paymentStatus: 'paid',
-          paymentMethod: 'cash',
-          notes: null,
-          createdAt: DateTime.now(),
-          deliveredAt: null,
-        ),
-      );
+      // If the new status is cancelled, use the dedicated cancel endpoint
+      final lowered = newStatus.toLowerCase();
+      if (lowered == 'cancelled' || lowered == 'canceled') {
+        return await cancelOrder(orderId);
+      }
 
+      // Use the dedicated status endpoint with query parameter
+      final endpoint = '/admin/sales/$orderId/status?status=${Uri.encodeComponent(newStatus.toUpperCase())}';
       final response = await _apiService.put(
-        '/admin/sales/$orderId',
-        body: {
-          'status': newStatus.toUpperCase(),
-          'paymentMethod': current.paymentMethod.toUpperCase(),
-          'user': {
-            'userId': int.tryParse(current.clientId) ?? current.clientId,
-          },
-          'orderLines': current.items
-              .map(
-                (line) => {
-                  'quantity': line.quantity,
-                  'unitPrice': line.unitPrice,
-                  'product': {
-                    'productId': int.tryParse(line.productId) ?? line.productId,
-                  },
-                },
-              )
-              .toList(),
-        },
+        endpoint,
+        body: {},
         fromJson: (json) => json,
       );
 
@@ -558,7 +526,7 @@ class AdminProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      if (AppConfig.useMockApi) {
+      if (AppConfig.useMockApi && !AppConfig.useRealQuotesApi) {
         _quotes = await _mockApiService.fetchAllQuotes();
         _error = null;
         _isLoading = false;
@@ -589,6 +557,164 @@ class AdminProvider extends ChangeNotifier {
 
     _isLoading = false;
     notifyListeners();
+  }
+
+  Future<void> fetchQuotesByStatus(String status) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      if (AppConfig.useMockApi && !AppConfig.useRealQuotesApi) {
+        final all = await _mockApiService.fetchAllQuotes();
+        _quotes = all.where((q) => q.status.toLowerCase() == status.toLowerCase()).toList();
+        _error = null;
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
+
+      final response = await _apiService.get(
+        '/admin/quotes/status/${status.toUpperCase()}',
+        fromJson: (json) => json,
+      );
+
+      if (response.success && response.data != null) {
+        final List<dynamic> quotesJson = response.data is List
+            ? response.data
+            : response.data['quotes'] ?? response.data['data'] ?? [];
+
+        _quotes = quotesJson
+            .map((json) => Quote.fromJson(json as Map<String, dynamic>))
+            .toList();
+        _error = null;
+      } else {
+        _error = response.error ?? 'Failed to fetch quotes by status';
+      }
+    } catch (e) {
+      _error = 'Error fetching quotes by status: $e';
+    }
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  Future<bool> approveQuote(String quoteId) async {
+    try {
+      if (AppConfig.useMockApi && !AppConfig.useRealQuotesApi) {
+        final index = _quotes.indexWhere((q) => q.id == quoteId);
+        if (index == -1) {
+          _error = 'Quote not found';
+          return false;
+        }
+        final current = _quotes[index];
+        _quotes[index] = Quote(
+          id: current.id,
+          clientId: current.clientId,
+          clientName: current.clientName,
+          clientEmail: current.clientEmail,
+          clientPhone: current.clientPhone,
+          description: current.description,
+          deliveryAddress: current.deliveryAddress,
+          items: current.items,
+          totalAmount: current.totalAmount,
+          status: 'accepted',
+          rejectReason: current.rejectReason,
+          createdAt: current.createdAt,
+          respondedAt: DateTime.now(),
+          expiresAt: current.expiresAt,
+        );
+        _error = null;
+        return true;
+      }
+
+      final response = await _apiService.put(
+        '/admin/quotes/$quoteId/approve',
+        body: const {},
+        fromJson: (json) => json,
+      );
+
+      if (response.success && response.data != null) {
+        final updated = Quote.fromJson(response.data is Map<String, dynamic>
+            ? response.data
+            : response.data['quote'] ?? response.data['data']);
+        final index = _quotes.indexWhere((q) => q.id == quoteId);
+        if (index != -1) {
+          _quotes[index] = updated;
+        } else {
+          _quotes.insert(0, updated);
+        }
+        _error = null;
+        return true;
+      }
+
+      _error = response.error ?? 'Failed to approve quote';
+      return false;
+    } catch (e) {
+      _error = 'Error approving quote: $e';
+      return false;
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  Future<bool> rejectQuote(String quoteId) async {
+    try {
+      if (AppConfig.useMockApi && !AppConfig.useRealQuotesApi) {
+        final index = _quotes.indexWhere((q) => q.id == quoteId);
+        if (index == -1) {
+          _error = 'Quote not found';
+          return false;
+        }
+        final current = _quotes[index];
+        _quotes[index] = Quote(
+          id: current.id,
+          clientId: current.clientId,
+          clientName: current.clientName,
+          clientEmail: current.clientEmail,
+          clientPhone: current.clientPhone,
+          description: current.description,
+          deliveryAddress: current.deliveryAddress,
+          items: current.items,
+          totalAmount: current.totalAmount,
+          status: 'rejected',
+          rejectReason: current.rejectReason,
+          createdAt: current.createdAt,
+          respondedAt: DateTime.now(),
+          expiresAt: current.expiresAt,
+        );
+        _error = null;
+        return true;
+      }
+
+      final response = await _apiService.put(
+        '/admin/quotes/$quoteId/reject',
+        body: const {},
+        fromJson: (json) => json,
+      );
+
+      if (response.success && response.data != null) {
+        final updated = Quote.fromJson(response.data is Map<String, dynamic>
+            ? response.data
+            : response.data['quote'] ?? response.data['data']);
+        final index = _quotes.indexWhere((q) => q.id == quoteId);
+        if (index != -1) {
+          _quotes[index] = updated;
+        } else {
+          _quotes.insert(0, updated);
+        }
+        _error = null;
+        return true;
+      }
+
+      _error = response.error ?? 'Failed to reject quote';
+      return false;
+    } catch (e) {
+      _error = 'Error rejecting quote: $e';
+      return false;
+    } finally {
+      notifyListeners();
+    }
   }
 
   Future<bool> addQuotePrice(String quoteId, double price, DateTime? expiryDate) async {
@@ -698,8 +824,8 @@ class AdminProvider extends ChangeNotifier {
     required String name,
     required int stockQuantity,
     required double purchasePrice,
-    required double priceHT,
-    required double priceTTC,
+    double? priceHT,
+    double? priceTTC,
     String? url,
   }) async {
     try {
@@ -707,7 +833,7 @@ class AdminProvider extends ChangeNotifier {
         final success = await _mockApiService.createProduct(
           name: name,
           description: code,
-          price: priceTTC,
+          price: priceTTC ?? purchasePrice,
           stock: stockQuantity,
           category: 'General',
         );
@@ -720,19 +846,20 @@ class AdminProvider extends ChangeNotifier {
         return true;
       }
 
+      final body = <String, dynamic>{
+        if (productId != null && productId.isNotEmpty) 'productId': int.tryParse(productId) ?? productId,
+        'code': code,
+        'name': name,
+        'stockQuantity': stockQuantity,
+        'purchasePrice': purchasePrice,
+        if (priceHT != null) 'priceHT': priceHT,
+        if (priceTTC != null) 'priceTTC': priceTTC,
+        if (url != null && url.trim().isNotEmpty) 'url': url.trim(),
+      };
+
       final response = await _apiService.post(
         '/admin/products',
-        body: {
-          if (productId != null && productId.isNotEmpty)
-            'productId': int.tryParse(productId) ?? productId,
-          'code': code,
-          'name': name,
-          'stockQuantity': stockQuantity,
-          'purchasePrice': purchasePrice,
-          'priceHT': priceHT,
-          'priceTTC': priceTTC,
-          'url': (url != null && url.trim().isNotEmpty) ? url.trim() : null,
-        },
+        body: body,
         fromJson: (json) => json,
       );
 
@@ -760,8 +887,8 @@ class AdminProvider extends ChangeNotifier {
     required String name,
     required int stockQuantity,
     required double purchasePrice,
-    required double priceHT,
-    required double priceTTC,
+    double? priceHT,
+    double? priceTTC,
     String? url,
   }) async {
     try {
@@ -770,7 +897,7 @@ class AdminProvider extends ChangeNotifier {
           productId: productId,
           name: name,
           description: code,
-          price: priceTTC,
+          price: priceTTC ?? purchasePrice,
           stock: stockQuantity,
           category: 'General',
         );
@@ -783,18 +910,20 @@ class AdminProvider extends ChangeNotifier {
         return true;
       }
 
+      final body = <String, dynamic>{
+        'productId': int.tryParse(productId) ?? productId,
+        'code': code,
+        'name': name,
+        'stockQuantity': stockQuantity,
+        'purchasePrice': purchasePrice,
+        if (priceHT != null) 'priceHT': priceHT,
+        if (priceTTC != null) 'priceTTC': priceTTC,
+        if (url != null && url.trim().isNotEmpty) 'url': url.trim(),
+      };
+
       final response = await _apiService.patch(
         '/admin/products/$productId',
-        body: {
-          'productId': int.tryParse(productId) ?? productId,
-          'code': code,
-          'name': name,
-          'stockQuantity': stockQuantity,
-          'purchasePrice': purchasePrice,
-          'priceHT': priceHT,
-          'priceTTC': priceTTC,
-          'url': (url != null && url.trim().isNotEmpty) ? url.trim() : null,
-        },
+        body: body,
         fromJson: (json) => json,
       );
 

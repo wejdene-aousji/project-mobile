@@ -33,7 +33,9 @@ class _AdminQuotesManagementScreenState extends State<AdminQuotesManagementScree
 
           final filteredQuotes = _filterStatus == 'All'
               ? adminProvider.quotes
-              : adminProvider.quotes.where((q) => q.status == _filterStatus).toList();
+              : adminProvider.quotes
+                .where((q) => q.status.toLowerCase() == _filterStatus.toLowerCase())
+                .toList();
 
           return Column(
             children: [
@@ -42,13 +44,20 @@ class _AdminQuotesManagementScreenState extends State<AdminQuotesManagementScree
                 scrollDirection: Axis.horizontal,
                 padding: EdgeInsets.all(12),
                 child: Row(
-                  children: ['All', 'pending', 'accepted', 'rejected', 'expired']
+                  children: ['All', 'pending', 'accepted', 'rejected']
                       .map((status) => Padding(
                             padding: EdgeInsets.only(right: 8),
                             child: _FilterButton(
                               label: status,
                               isActive: _filterStatus == status,
-                              onPressed: () => setState(() => _filterStatus = status),
+                              onPressed: () async {
+                                setState(() => _filterStatus = status);
+                                if (status == 'All') {
+                                  await context.read<AdminProvider>().fetchAllQuotes();
+                                } else {
+                                  await context.read<AdminProvider>().fetchQuotesByStatus(status);
+                                }
+                              },
                             ),
                           ))
                       .toList(),
@@ -77,7 +86,7 @@ class _AdminQuotesManagementScreenState extends State<AdminQuotesManagementScree
                               child: ListTile(
                                 title: Text('Quote #${quote.id.substring(0, quote.id.length > 8 ? 8 : quote.id.length).toUpperCase()}'),
                                 subtitle: Text(
-                                  '${quote.clientName} • \$${quote.totalAmount.toStringAsFixed(2)}',
+                                  quote.clientName,
                                 ),
                                 trailing: Chip(
                                   label: Text(quote.status),
@@ -102,15 +111,13 @@ class _AdminQuotesManagementScreenState extends State<AdminQuotesManagementScree
   }
 
   Color _getStatusColor(String status) {
-    switch (status) {
+    switch (status.toLowerCase()) {
       case 'pending':
         return Colors.orange.shade100;
       case 'accepted':
         return Colors.green.shade100;
       case 'rejected':
         return Colors.red.shade100;
-      case 'expired':
-        return Colors.grey.shade100;
       default:
         return Colors.grey.shade100;
     }

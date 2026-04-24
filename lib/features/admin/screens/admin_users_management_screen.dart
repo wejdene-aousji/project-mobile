@@ -216,22 +216,7 @@ class _AdminUsersManagementScreenState extends State<AdminUsersManagementScreen>
                       return null;
                     },
                   ),
-                  SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    value: selectedRole,
-                    decoration: InputDecoration(
-                      labelText: 'Role',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: const [
-                      DropdownMenuItem(value: 'CLIENT', child: Text('CLIENT')),
-                      DropdownMenuItem(value: 'ADMIN', child: Text('ADMIN')),
-                    ],
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setModalState(() => selectedRole = value);
-                    },
-                  ),
+                  // Role is not editable from the edit dialog by design.
                 ],
               ),
             ),

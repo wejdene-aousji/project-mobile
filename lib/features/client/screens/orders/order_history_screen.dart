@@ -47,7 +47,12 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
             );
           }
 
-          if (orderProvider.error != null) {
+          // Clear transient errors if we still have cached orders
+          if (orderProvider.error != null && orderProvider.orders.isNotEmpty) {
+            WidgetsBinding.instance.addPostFrameCallback((_) => orderProvider.clearError());
+          }
+
+          if (orderProvider.error != null && orderProvider.orders.isEmpty) {
             return Center(
               child: EmptyState(
                 icon: Icons.error_outline,
@@ -108,8 +113,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                           action: CustomButton(
                             label: 'Clear Filters',
                             onPressed: () {
-                              _selectedStatus = 'All';
-                              orderProvider.filterByStatus('All');
+                                  _selectedStatus = 'All';
+                                  orderProvider.filterByStatus('All');
                             },
                           ),
                         ),
@@ -264,12 +269,13 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   }
 
   Color _getStatusColor(String? status) {
-    switch (status) {
-      case 'Pending':
+    final s = (status ?? '').toLowerCase();
+    switch (s) {
+      case 'pending':
         return Colors.orange;
-      case 'Completed':
+      case 'completed':
         return Colors.green;
-      case 'Cancelled':
+      case 'cancelled':
         return Colors.red;
       default:
         return Colors.grey;

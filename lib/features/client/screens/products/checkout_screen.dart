@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../shared/widgets/index.dart';
 import '../../providers/cart_provider.dart';
+import '../../providers/order_provider.dart';
 import '../../widgets/client_bottom_nav_bar.dart';
 
 /// Checkout Screen
@@ -14,32 +15,43 @@ class CheckoutScreen extends StatefulWidget {
 }
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _addressController = TextEditingController();
-  final _cityController = TextEditingController();
-  final _countryController = TextEditingController();
   bool _isPlacingOrder = false;
 
   @override
   void dispose() {
-    _addressController.dispose();
-    _cityController.dispose();
-    _countryController.dispose();
     super.dispose();
   }
 
   void _placeOrder() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isPlacingOrder = true);
+    setState(() => _isPlacingOrder = true);
 
-      // Simulate API call
-      await Future.delayed(const Duration(seconds: 2));
+    final cart = context.read<CartProvider>();
+    final orderProvider = context.read<OrderProvider>();
 
-      if (mounted) {
-        setState(() => _isPlacingOrder = false);
-        
+    // Build order lines
+    final orderLines = cart.items.map((item) {
+      return {
+        'product': {'productId': int.tryParse(item.productId) ?? item.productId},
+        'quantity': item.quantity,
+        'unitPrice': item.productPrice,
+        'subtotal': item.totalPrice,
+      };
+    }).toList();
+
+    final summary = cart.getCartSummary();
+
+    final success = await orderProvider.createOrder(
+      orderLines: orderLines,
+      totalPrice: summary['total'] as double,
+      paymentMethod: 'cod',
+    );
+
+    if (mounted) {
+      setState(() => _isPlacingOrder = false);
+
+      if (success) {
         // Clear cart
-        context.read<CartProvider>().clearCart();
+        cart.clearCart();
 
         SuccessDialog.show(
           context,
@@ -48,6 +60,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           onDismiss: () {
             Navigator.of(context).pushReplacementNamed(AppRoutes.clientOrders);
           },
+        );
+      } else {
+        // Show error
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: Text('Error'),
+            content: Text(orderProvider.error ?? 'Failed to place order'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text('OK'),
+              ),
+            ],
+          ),
         );
       }
     }
@@ -75,63 +102,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Delivery Address Section
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Delivery Address',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      const SizedBox(height: 16),
-                      Form(
-                        key: _formKey,
-                        child: Column(
-                          children: [
-                            CustomTextField(
-                              label: 'Address',
-                              hint: 'Street address',
-                              controller: _addressController,
-                              prefixIcon: Icons.location_on,
-                              validator: (value) {
-                                if (value?.isEmpty ?? true) {
-                                  return 'Address is required';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 16),
-                            CustomTextField(
-                              label: 'City',
-                              hint: 'City',
-                              controller: _cityController,
-                              validator: (value) {
-                                if (value?.isEmpty ?? true) {
-                                  return 'City is required';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 16),
-                            CustomTextField(
-                              label: 'Country',
-                              hint: 'Country',
-                              controller: _countryController,
-                              validator: (value) {
-                                if (value?.isEmpty ?? true) {
-                                  return 'Country is required';
-                                }
-                                return null;
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
                 const Divider(),
                 // Order Summary Section
                 Padding(

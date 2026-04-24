@@ -49,18 +49,14 @@ class ProductProvider extends ChangeNotifier {
         return;
       }
 
-      final response = await apiService.get<Map<String, dynamic>>(
-        '/admin/products',
-        fromJson: (json) => json is Map<String, dynamic>
-            ? json
-            : {'data': json},
+      final response = await apiService.get<List<dynamic>>(
+        '/api/client/products',
+        fromJson: (json) => json is List ? json : (json is Map && json['data'] is List ? json['data'] as List : <dynamic>[]),
       );
 
       if (response.success && response.data != null) {
-        final data = response.data!['data'] as List? ?? response.data!['products'] as List? ?? [];
-        _products = data
-            .map((item) => Product.fromJson(item as Map<String, dynamic>))
-            .toList();
+        final data = response.data!;
+        _products = data.map((item) => Product.fromJson(item as Map<String, dynamic>)).toList();
         _applyFilters();
       } else {
         _error = response.message ?? response.error ?? 'Failed to load products';
@@ -88,13 +84,18 @@ class ProductProvider extends ChangeNotifier {
         return;
       }
 
-      final response = await apiService.get<Map<String, dynamic>>(
-        '/admin/products/$productId',
-        fromJson: (json) => json as Map<String, dynamic>,
+      final response = await apiService.get<dynamic>(
+        '/api/client/products/$productId',
+        fromJson: (json) => json,
       );
 
       if (response.success && response.data != null) {
-        _selectedProduct = Product.fromJson(response.data!);
+        final payload = response.data is Map ? response.data as Map : (response.data is List && response.data.isNotEmpty ? response.data[0] as Map : null);
+        if (payload != null) {
+          _selectedProduct = Product.fromJson(payload as Map<String, dynamic>);
+        } else {
+          _error = 'Product not found';
+        }
       } else {
         _error = response.message ?? response.error ?? 'Failed to load product';
       }

@@ -107,29 +107,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 ),
                 SizedBox(height: 16),
 
-                // Delivery Information
-                Text('Delivery Information', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                SizedBox(height: 8),
-                CustomCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.location_on_outlined, color: Colors.blue),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              order.deliveryAddress,
-                              style: TextStyle(fontSize: 13),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(height: 16),
+                // Delivery information removed per request
 
                 // Order Items
                 Text('Items (${order.items.length})', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
@@ -247,12 +225,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   }
 
   Color _getStatusColor(String? status) {
-    switch (status) {
-      case 'Pending':
+    final s = (status ?? '').toLowerCase();
+    switch (s) {
+      case 'pending':
         return Colors.orange;
-      case 'Completed':
+      case 'completed':
         return Colors.green;
-      case 'Cancelled':
+      case 'cancelled':
         return Colors.red;
       default:
         return Colors.grey;

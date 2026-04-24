@@ -45,24 +45,36 @@ class AuthService {
     };
 
     final response = await apiService.post<Map<String, dynamic>>(
-      '/auth/login',
+      '/api/auth/login',
       body: body,
       fromJson: (json) => json as Map<String, dynamic>,
     );
 
     if (response.success && response.data != null) {
-      final token = response.data!['token'] as String;
-      final refreshToken = response.data!['refresh_token'] as String?;
-      final userData = response.data!['user'] as Map<String, dynamic>;
+      final data = response.data!;
+      final token = data['token'] as String? ?? data['access_token'] as String?;
+      final role = (data['role'] ?? data['user']?['role'])?.toString();
+      final emailResp = (data['email'] ?? data['user']?['email'])?.toString();
+      final fullName = (data['fullName'] ?? data['user']?['fullName'] ?? data['user']?['name'])?.toString();
+      final phone = (data['phone'] ?? data['user']?['phone'])?.toString() ?? '';
 
-      // Save tokens
-      await tokenPersistence.saveToken(token);
-      if (refreshToken != null) {
-        await tokenPersistence.saveRefreshToken(refreshToken);
+      // Extract userId if provided by backend (top-level or nested)
+      dynamic rawUserId = data['userId'] ?? data['user']?['userId'] ?? data['user']?['id'];
+      final userIdStr = rawUserId != null ? rawUserId.toString() : null;
+
+      if (token != null) {
+        await tokenPersistence.saveToken(token);
       }
 
-      // Create user object
-      _currentUser = User.fromJson(userData);
+      // Build minimal user from response, prefer explicit userId when available
+      _currentUser = User(
+        id: userIdStr ?? emailResp ?? fullName ?? 'unknown',
+        email: emailResp ?? '',
+        name: fullName ?? emailResp ?? 'User',
+        phone: phone,
+        role: (role ?? 'client').toString().toLowerCase(),
+        createdAt: DateTime.now(),
+      );
 
       // Save user data to storage
       await tokenPersistence.setString(
@@ -92,34 +104,38 @@ class AuthService {
     required String phone,
   }) async {
     final body = {
-      'name': name,
+      'fullName': name,
       'email': email,
       'password': password,
       'phone': phone,
-      'role': 'client', // Default role is client
     };
 
     final response = await apiService.post<Map<String, dynamic>>(
-      '/auth/signup',
+      '/api/auth/register',
       body: body,
       fromJson: (json) => json as Map<String, dynamic>,
     );
 
     if (response.success && response.data != null) {
-      final token = response.data!['token'] as String;
-      final refreshToken = response.data!['refresh_token'] as String?;
-      final userData = response.data!['user'] as Map<String, dynamic>;
+      final data = response.data!;
+      final token = data['token'] as String?;
+      final role = data['role']?.toString();
+      final emailResp = data['email']?.toString();
+      final fullName = data['fullName']?.toString();
 
-      // Save tokens
-      await tokenPersistence.saveToken(token);
-      if (refreshToken != null) {
-        await tokenPersistence.saveRefreshToken(refreshToken);
+      if (token != null) {
+        await tokenPersistence.saveToken(token);
       }
 
-      // Create user object
-      _currentUser = User.fromJson(userData);
+      _currentUser = User(
+        id: emailResp ?? fullName ?? 'unknown',
+        email: emailResp ?? '',
+        name: fullName ?? emailResp ?? 'User',
+        phone: phone,
+        role: (role ?? 'client').toString().toLowerCase(),
+        createdAt: DateTime.now(),
+      );
 
-      // Save user data to storage
       await tokenPersistence.setString(
         AppConfig.userStorageKey,
         jsonEncode(_currentUser!.toJson()),
@@ -190,6 +206,60 @@ class AuthService {
         message: response.message,
       );
     }
+  }
+
+  /// Update client profile via new API endpoint '/api/client/profile'
+  Future<ApiResponse<User>> updateClientProfile({
+    required dynamic userId,
+    String? fullName,
+    String? email,
+    String? phone,
+    String? role,
+    DateTime? createdAt,
+  }) async {
+    final body = {
+      'userId': userId,
+      'fullName': fullName,
+      'email': email,
+      'phone': phone,
+      'role': role,
+      'createdAt': createdAt?.toIso8601String(),
+    }..removeWhere((key, value) => value == null);
+
+    final response = await apiService.put<Map<String, dynamic>>(
+      '/api/client/profile',
+      body: body,
+      fromJson: (json) => json as Map<String, dynamic>,
+    );
+
+    if (response.success && response.data != null) {
+      // Backend may return the updated user directly or wrapped; try common shapes
+      Map<String, dynamic> userJson;
+      final data = response.data!;
+      if (data is Map<String, dynamic> && data.containsKey('user')) {
+        userJson = data['user'] as Map<String, dynamic>;
+      } else if (data is Map<String, dynamic> && data.containsKey('data')) {
+        userJson = data['data'] as Map<String, dynamic>;
+      } else {
+        userJson = data as Map<String, dynamic>;
+      }
+
+      try {
+        _currentUser = User.fromJson(userJson);
+
+        // Update stored user data
+        await tokenPersistence.setString(
+          AppConfig.userStorageKey,
+          jsonEncode(_currentUser!.toJson()),
+        );
+
+        return ApiResponse(success: true, data: _currentUser, message: 'Profile updated');
+      } catch (e) {
+        return ApiResponse(success: false, error: 'Invalid user response', message: 'Failed to parse user');
+      }
+    }
+
+    return ApiResponse(success: false, error: response.error, message: response.message);
   }
 
   /// Logout user
