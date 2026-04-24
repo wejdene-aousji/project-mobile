@@ -129,4 +129,18 @@ public class SaleAdminService {
 
         return orderRepository.save(order);
     }
+
+    // Update sale/order status (administrative)
+    public Order updateSaleStatus(Long orderId, OrderStatus status) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        if (status == OrderStatus.CANCELED) {
+            // reuse cancel logic to restore stock
+            return cancelSale(orderId);
+        }
+
+        order.setStatus(status);
+        return orderRepository.save(order);
+    }
 }

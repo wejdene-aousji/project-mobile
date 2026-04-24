@@ -52,4 +52,10 @@ public class SaleAdminController {
     public Order cancelSale(@PathVariable Long id) {
         return saleAdminService.cancelSale(id);
     }
+
+    // Update sale status
+    @PutMapping("/{id}/status")
+    public Order updateStatus(@PathVariable Long id, @RequestParam OrderStatus status) {
+        return saleAdminService.updateSaleStatus(id, status);
+    }
 }

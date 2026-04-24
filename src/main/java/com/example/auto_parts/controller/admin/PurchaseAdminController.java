@@ -16,21 +16,36 @@ public class PurchaseAdminController {
         this.purchaseAdminService = purchaseAdminService;
     }
 
-    // CREATE PURCHASE
+    // Create purchase
     @PostMapping
     public Purchase createPurchase(@RequestBody Purchase purchase) {
         return purchaseAdminService.createPurchase(purchase);
     }
 
-    // GET ALL PURCHASES
+    // Get all purchases
     @GetMapping
     public List<Purchase> getAllPurchases() {
         return purchaseAdminService.getAllPurchases();
     }
 
-    // UPDATE STOCK
+    // Update stock for a purchase
     @PutMapping("/{id}/stock")
     public void updatePurchaseStock(@PathVariable Long id) {
         purchaseAdminService.updatePurchaseStock(id);
+    }
+
+    // Update purchase
+    @PutMapping("/{id}")
+    public Purchase updatePurchase(
+            @PathVariable Long id,
+            @RequestBody Purchase purchase) {
+
+        return purchaseAdminService.updatePurchase(id, purchase);
+    }
+
+    // Delete purchase
+    @DeleteMapping("/{id}")
+    public void deletePurchase(@PathVariable Long id) {
+        purchaseAdminService.deletePurchase(id);
     }
 }

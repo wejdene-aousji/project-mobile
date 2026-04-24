@@ -20,8 +20,8 @@ public class QuoteClientController {
     }
 
     @PostMapping
-    public ResponseEntity<Quote> createQuote(@RequestBody Quote quote, Authentication auth) {
-        return ResponseEntity.ok(quoteClientService.createQuote(auth.getName(), quote));
+    public ResponseEntity<Quote> createQuote(@RequestBody com.example.auto_parts.dto.QuoteRequest quoteRequest, Authentication auth) {
+        return ResponseEntity.ok(quoteClientService.createQuote(auth.getName(), quoteRequest));
     }
 
     @GetMapping

@@ -2,6 +2,8 @@ package com.example.auto_parts.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.List;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 @Entity
 @Table(name = "quotes")
@@ -22,6 +24,10 @@ public class Quote {
     private String message;
 
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    @OneToMany(mappedBy = "quote", cascade = CascadeType.ALL)
+    @JsonManagedReference
+    private List<QuoteLine> quoteLines;
 
     public Quote() {
     }
@@ -71,6 +77,14 @@ public class Quote {
 
     public void setUser(User user) {
         this.user = user;
+    }
+
+    public List<QuoteLine> getQuoteLines() {
+        return quoteLines;
+    }
+
+    public void setQuoteLines(List<QuoteLine> quoteLines) {
+        this.quoteLines = quoteLines;
     }
 
     

@@ -51,7 +51,7 @@ public class AuthService {
                 .authorities("ROLE_" + user.getRole().name())
                 .build());
 
-        return new AuthResponse(token, user.getRole().name(), user.getEmail(), user.getFullName());
+        return new AuthResponse(user.getUserId(), token, user.getRole().name(), user.getEmail(), user.getFullName(), user.getPhone());
     }
 
     public AuthResponse login(LoginRequest request) {
@@ -68,7 +68,7 @@ public class AuthService {
                 .authorities("ROLE_" + user.getRole().name())
                 .build());
 
-        return new AuthResponse(token, user.getRole().name(), user.getEmail(), user.getFullName());
+        return new AuthResponse(user.getUserId(), token, user.getRole().name(), user.getEmail(), user.getFullName(), user.getPhone());
     }
 }
 
