@@ -200,7 +200,7 @@ class _QuoteDetailScreenState extends State<QuoteDetailScreen> {
                 SizedBox(height: 16),
 
                 // Action buttons
-                if (quote.status == 'Pending')
+                if (quote.status == 'Pending' && quote.quotedPrice > 0)
                   Column(
                     children: [
                       SizedBox(

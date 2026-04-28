@@ -246,8 +246,8 @@ class _QuoteHistoryScreenState extends State<QuoteHistoryScreen> {
                 ),
             ],
           ),
-          // Action buttons for pending quotes
-          if ((quote.status ?? '').toLowerCase() == 'pending')
+          // Action buttons for pending quotes with quoted price
+          if ((quote.status ?? '').toLowerCase() == 'pending' && quote.totalAmount > 0)
             Padding(
               padding: const EdgeInsets.only(top: 12),
               child: Row(
